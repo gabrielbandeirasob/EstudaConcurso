@@ -24,6 +24,7 @@ export interface Note {
   preview: string;
   image?: string;
   tags: string[];
+  subject_id?: string;
 }
 
 export enum AppTab {
