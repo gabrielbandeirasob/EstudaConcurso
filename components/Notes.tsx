@@ -16,6 +16,9 @@ const Notes: React.FC = () => {
   // Interaction state
   const [expandedFolders, setExpandedFolders] = useState<string[]>([]);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editPreview, setEditPreview] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -87,6 +90,48 @@ const Notes: React.FC = () => {
         ? prev.filter(name => name !== subjectName)
         : [...prev, subjectName]
     );
+  };
+
+  const handleEdit = () => {
+    if (!selectedNote) return;
+    setEditTitle(selectedNote.title);
+    setEditPreview(selectedNote.preview || '');
+    setIsEditing(true);
+  };
+
+  const handleUpdate = async () => {
+    if (!selectedNote || !editTitle) return;
+
+    const { error } = await supabase
+      .from('notes')
+      .update({ title: editTitle, preview: editPreview })
+      .eq('id', selectedNote.id);
+
+    if (error) {
+      console.error('Error updating note:', error.message);
+    } else {
+      setIsEditing(false);
+      setSelectedNote({ ...selectedNote, title: editTitle, preview: editPreview });
+      fetchData();
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedNote) return;
+    if (!confirm('Tem certeza que deseja excluir esta nota?')) return;
+
+    const { error } = await supabase
+      .from('notes')
+      .delete()
+      .eq('id', selectedNote.id);
+
+    if (error) {
+      console.error('Error deleting note:', error.message);
+    } else {
+      setIsEditing(false);
+      setSelectedNote(null);
+      fetchData();
+    }
   };
 
   const categories = ['Todas', ...subjects.map(s => s.name)];
@@ -301,10 +346,23 @@ const Notes: React.FC = () => {
                     📂 {selectedNote.category}
                   </span>
                 </div>
-                <h2 className="text-2xl font-black text-[#111718] leading-tight tracking-tight">{selectedNote.title}</h2>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className="text-2xl font-black text-[#111718] leading-tight tracking-tight w-full border-b-2 border-[#008080]/20 focus:border-[#008080] outline-none py-1"
+                    placeholder="Título da nota"
+                  />
+                ) : (
+                  <h2 className="text-2xl font-black text-[#111718] leading-tight tracking-tight">{selectedNote.title}</h2>
+                )}
               </div>
               <button
-                onClick={() => setSelectedNote(null)}
+                onClick={() => {
+                  setSelectedNote(null);
+                  setIsEditing(false);
+                }}
                 className="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-full text-gray-400 hover:text-gray-900 hover:rotate-90 transition-all duration-300"
               >
                 <span className="material-symbols-outlined text-xl">close</span>
@@ -312,24 +370,61 @@ const Notes: React.FC = () => {
             </div>
 
             <div className="max-h-[50vh] overflow-y-auto no-scrollbar mb-8">
-              <p className="text-gray-600 text-[15px] leading-[1.8] whitespace-pre-wrap font-medium">
-                {selectedNote.preview}
-              </p>
+              {isEditing ? (
+                <textarea
+                  value={editPreview}
+                  onChange={(e) => setEditPreview(e.target.value)}
+                  className="w-full text-gray-600 text-[15px] leading-[1.8] font-medium border-2 border-gray-100 rounded-2xl p-4 focus:border-[#008080]/20 outline-none"
+                  rows={8}
+                  placeholder="Conteúdo da nota..."
+                />
+              ) : (
+                <p className="text-gray-600 text-[15px] leading-[1.8] whitespace-pre-wrap font-medium">
+                  {selectedNote.preview}
+                </p>
+              )}
             </div>
 
             <div className="flex gap-4">
-              <button
-                onClick={() => setSelectedNote(null)}
-                className="flex-1 py-4 px-6 bg-[#111718] text-white rounded-[20px] font-bold shadow-xl shadow-black/10 hover:bg-black active:scale-[0.98] transition-all"
-              >
-                Voltar
-              </button>
-              <button
-                className="w-14 h-14 flex items-center justify-center bg-gray-50 border border-gray-100 text-[#008080] rounded-[20px] hover:bg-white active:scale-[0.98] transition-all group"
-                title="Editar (em breve)"
-              >
-                <span className="material-symbols-outlined group-hover:scale-110 transition-transform">edit_note</span>
-              </button>
+              {isEditing ? (
+                <>
+                  <button
+                    onClick={handleUpdate}
+                    className="flex-1 py-4 px-6 bg-[#008080] text-white rounded-[20px] font-bold shadow-xl shadow-[#008080]/10 hover:bg-[#006666] active:scale-[0.98] transition-all"
+                  >
+                    Salvar Alterações
+                  </button>
+                  <button
+                    onClick={() => setIsEditing(false)}
+                    className="px-6 py-4 bg-gray-100 text-gray-600 rounded-[20px] font-bold hover:bg-gray-200 active:scale-[0.98] transition-all"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    className="w-14 h-14 flex items-center justify-center bg-red-50 border border-red-100 text-red-500 rounded-[20px] hover:bg-red-100 active:scale-[0.98] transition-all group"
+                    title="Excluir Nota"
+                  >
+                    <span className="material-symbols-outlined group-hover:scale-110 transition-transform">delete</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setSelectedNote(null)}
+                    className="flex-1 py-4 px-6 bg-[#111718] text-white rounded-[20px] font-bold shadow-xl shadow-black/10 hover:bg-black active:scale-[0.98] transition-all"
+                  >
+                    Voltar
+                  </button>
+                  <button
+                    onClick={handleEdit}
+                    className="w-14 h-14 flex items-center justify-center bg-gray-50 border border-gray-100 text-[#008080] rounded-[20px] hover:bg-white active:scale-[0.98] transition-all group"
+                    title="Editar Nota"
+                  >
+                    <span className="material-symbols-outlined group-hover:scale-110 transition-transform">edit_note</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
