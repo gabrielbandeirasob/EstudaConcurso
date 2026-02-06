@@ -37,11 +37,8 @@ const Notes: React.FC = () => {
     setNotes(fetchedNotes);
     setSubjects(fetchedSubjects);
 
-    // Auto-expand all folders on load if they have notes
-    const subjectsWithNotes = fetchedSubjects
-      .filter(s => fetchedNotes.some(n => n.subject_id === s.id))
-      .map(s => s.name);
-    setExpandedFolders(subjectsWithNotes);
+    // Folders are now collapsed by default as per request
+    setExpandedFolders([]);
 
     if (fetchedSubjects.length > 0) {
       setSelectedSubjectId(fetchedSubjects[0].id);
@@ -98,18 +95,21 @@ const Notes: React.FC = () => {
     <div
       key={note.id}
       onClick={() => setSelectedNote(note)}
-      className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col gap-2 hover:border-[#008080]/30 transition-all active:scale-95 cursor-pointer group"
+      className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between gap-4 hover:border-[#008080]/30 transition-all active:scale-[0.99] cursor-pointer group"
     >
-      <div>
-        <h3 className="font-bold text-sm mb-1 line-clamp-2 text-[#111718] group-hover:text-[#008080] transition-colors">{note.title}</h3>
-        <p className="text-[11px] text-gray-400 line-clamp-3 leading-relaxed">Clique para ver o conteúdo...</p>
+      <div className="flex-1 overflow-hidden">
+        <h3 className="font-bold text-sm mb-0.5 truncate text-[#111718] group-hover:text-[#008080] transition-colors">{note.title}</h3>
+        <p className="text-[11px] text-gray-400 truncate leading-relaxed">Clique para ver o conteúdo completo...</p>
       </div>
-      <div className="mt-auto flex flex-wrap gap-1">
-        {(note.tags || []).map(tag => (
-          <span key={tag} className="px-2 py-0.5 rounded-[4px] text-[9px] font-bold bg-[#F0F7F7] text-[#008080] uppercase tracking-wider">
-            {tag}
-          </span>
-        ))}
+      <div className="shrink-0 flex items-center gap-2">
+        <div className="flex flex-wrap gap-1">
+          {(note.tags || []).slice(0, 1).map(tag => (
+            <span key={tag} className="px-2 py-0.5 rounded-[4px] text-[8px] font-bold bg-[#F0F7F7] text-[#008080] uppercase tracking-wider">
+              {tag}
+            </span>
+          ))}
+        </div>
+        <span className="material-symbols-outlined text-gray-300 text-[18px] group-hover:text-[#008080] transition-colors">chevron_right</span>
       </div>
     </div>
   );
@@ -118,12 +118,12 @@ const Notes: React.FC = () => {
     const isExpanded = expandedFolders.includes(subjectName) || filter !== 'Todas';
 
     return (
-      <div key={subjectName} className="space-y-4">
+      <div key={subjectName} className="space-y-3">
         <button
           onClick={() => filter === 'Todas' && toggleFolder(subjectName)}
-          className="flex items-center gap-2 px-1 w-full text-left group"
+          className="flex items-center gap-3 px-1 w-full text-left group py-1"
         >
-          <span className="material-symbols-outlined text-[#008080] text-[20px] transition-transform duration-200" style={{ fontVariationSettings: isExpanded ? '"FILL" 1' : '"FILL" 0' }}>
+          <span className="material-symbols-outlined text-[#008080] text-[22px] transition-transform duration-200" style={{ fontVariationSettings: isExpanded ? '"FILL" 1' : '"FILL" 0' }}>
             {isExpanded ? 'folder_open' : 'folder'}
           </span>
           <h2 className="font-bold text-[#111718] text-base flex-1">{subjectName}</h2>
@@ -132,15 +132,15 @@ const Notes: React.FC = () => {
               {subjectNotes.length}
             </span>
             {filter === 'Todas' && (
-              <span className={`material-symbols-outlined text-gray-300 text-[18px] transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>
-                expand_more
+              <span className={`material-symbols-outlined text-gray-300 text-[20px] transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>
+                keyboard_arrow_down
               </span>
             )}
           </div>
         </button>
 
         {isExpanded && (
-          <div className="grid grid-cols-2 gap-3 transition-all animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex flex-col gap-2 transition-all animate-in fade-in slide-in-from-top-1 duration-300">
             {subjectNotes.map(renderNoteCard)}
           </div>
         )}
