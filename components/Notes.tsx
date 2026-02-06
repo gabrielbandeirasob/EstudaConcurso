@@ -13,6 +13,10 @@ const Notes: React.FC = () => {
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>('');
   const [newPreview, setNewPreview] = useState('');
 
+  // Interaction state
+  const [expandedFolders, setExpandedFolders] = useState<string[]>([]);
+  const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -27,11 +31,20 @@ const Notes: React.FC = () => {
     if (notesRes.error) console.error('Error fetching notes:', notesRes.error.message);
     if (subjectsRes.error) console.error('Error fetching subjects:', subjectsRes.error.message);
 
-    setNotes(notesRes.data || []);
-    setSubjects(subjectsRes.data || []);
+    const fetchedNotes = notesRes.data || [];
+    const fetchedSubjects = subjectsRes.data || [];
 
-    if (subjectsRes.data && subjectsRes.data.length > 0) {
-      setSelectedSubjectId(subjectsRes.data[0].id);
+    setNotes(fetchedNotes);
+    setSubjects(fetchedSubjects);
+
+    // Auto-expand all folders on load if they have notes
+    const subjectsWithNotes = fetchedSubjects
+      .filter(s => fetchedNotes.some(n => n.subject_id === s.id))
+      .map(s => s.name);
+    setExpandedFolders(subjectsWithNotes);
+
+    if (fetchedSubjects.length > 0) {
+      setSelectedSubjectId(fetchedSubjects[0].id);
     }
 
     setLoading(false);
@@ -63,17 +76,33 @@ const Notes: React.FC = () => {
       setNewTitle('');
       setNewPreview('');
       setShowAddForm(false);
+      // Ensure the folder is expanded when a new note is added
+      if (!expandedFolders.includes(subject.name)) {
+        setExpandedFolders([...expandedFolders, subject.name]);
+      }
       fetchData();
     }
+  };
+
+  const toggleFolder = (subjectName: string) => {
+    setExpandedFolders(prev =>
+      prev.includes(subjectName)
+        ? prev.filter(name => name !== subjectName)
+        : [...prev, subjectName]
+    );
   };
 
   const categories = ['Todas', ...subjects.map(s => s.name)];
 
   const renderNoteCard = (note: Note) => (
-    <div key={note.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col gap-2 hover:border-[#008080]/30 transition-colors">
+    <div
+      key={note.id}
+      onClick={() => setSelectedNote(note)}
+      className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col gap-2 hover:border-[#008080]/30 transition-all active:scale-95 cursor-pointer group"
+    >
       <div>
-        <h3 className="font-bold text-sm mb-1 line-clamp-2 text-[#111718]">{note.title}</h3>
-        <p className="text-[11px] text-gray-500 line-clamp-3 leading-relaxed">{note.preview}</p>
+        <h3 className="font-bold text-sm mb-1 line-clamp-2 text-[#111718] group-hover:text-[#008080] transition-colors">{note.title}</h3>
+        <p className="text-[11px] text-gray-400 line-clamp-3 leading-relaxed">Clique para ver o conteúdo...</p>
       </div>
       <div className="mt-auto flex flex-wrap gap-1">
         {(note.tags || []).map(tag => (
@@ -85,20 +114,39 @@ const Notes: React.FC = () => {
     </div>
   );
 
-  const renderFolderSection = (subjectName: string, subjectNotes: Note[]) => (
-    <div key={subjectName} className="space-y-4">
-      <div className="flex items-center gap-2 px-1">
-        <span className="material-symbols-outlined text-[#008080] text-[20px] material-symbols-fill">folder</span>
-        <h2 className="font-bold text-[#111718] text-base">{subjectName}</h2>
-        <span className="text-[10px] font-bold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
-          {subjectNotes.length}
-        </span>
+  const renderFolderSection = (subjectName: string, subjectNotes: Note[]) => {
+    const isExpanded = expandedFolders.includes(subjectName) || filter !== 'Todas';
+
+    return (
+      <div key={subjectName} className="space-y-4">
+        <button
+          onClick={() => filter === 'Todas' && toggleFolder(subjectName)}
+          className="flex items-center gap-2 px-1 w-full text-left group"
+        >
+          <span className="material-symbols-outlined text-[#008080] text-[20px] transition-transform duration-200" style={{ fontVariationSettings: isExpanded ? '"FILL" 1' : '"FILL" 0' }}>
+            {isExpanded ? 'folder_open' : 'folder'}
+          </span>
+          <h2 className="font-bold text-[#111718] text-base flex-1">{subjectName}</h2>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+              {subjectNotes.length}
+            </span>
+            {filter === 'Todas' && (
+              <span className={`material-symbols-outlined text-gray-300 text-[18px] transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>
+                expand_more
+              </span>
+            )}
+          </div>
+        </button>
+
+        {isExpanded && (
+          <div className="grid grid-cols-2 gap-3 transition-all animate-in fade-in slide-in-from-top-2 duration-300">
+            {subjectNotes.map(renderNoteCard)}
+          </div>
+        )}
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        {subjectNotes.map(renderNoteCard)}
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="px-4 pt-8 pb-32">
@@ -106,7 +154,7 @@ const Notes: React.FC = () => {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-gray-900">Notas de Estudo</h1>
-            <p className="text-sm text-gray-500">Organizadas por matérias</p>
+            <p className="text-sm text-gray-500">Clique nas pastas e notas para explorar</p>
           </div>
           <button
             onClick={() => setShowAddForm(true)}
@@ -192,14 +240,17 @@ const Notes: React.FC = () => {
 
       <main className="space-y-10">
         {loading ? (
-          <p className="text-center text-gray-500 py-10">Carregando gavetas...</p>
+          <div className="flex flex-col items-center justify-center py-20 animate-pulse">
+            <div className="w-12 h-12 bg-gray-100 rounded-full mb-4" />
+            <p className="text-center text-gray-400 text-sm">Organizando materiais...</p>
+          </div>
         ) : subjects.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center px-6">
-            <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4 border border-dashed border-gray-200">
-              <span className="material-symbols-outlined text-gray-300 text-3xl">folder_off</span>
+          <div className="flex flex-col items-center justify-center py-16 text-center px-6">
+            <div className="w-20 h-20 bg-gray-50 rounded-3xl flex items-center justify-center mb-6 border border-dashed border-gray-200">
+              <span className="material-symbols-outlined text-gray-300 text-4xl">folder_off</span>
             </div>
-            <h3 className="text-gray-900 font-bold mb-1">Sem pastas criadas</h3>
-            <p className="text-sm text-gray-500">Crie matérias para que suas notas tenham um lugar.</p>
+            <h3 className="text-gray-900 font-bold mb-2 text-lg">Sem pastas criadas</h3>
+            <p className="text-sm text-gray-500 max-w-xs">Adicione matérias para que suas anotações tenham um lugar dedicado.</p>
           </div>
         ) : (
           <>
@@ -219,17 +270,70 @@ const Notes: React.FC = () => {
             )}
 
             {notes.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-12 text-center px-6">
+              <div className="flex flex-col items-center justify-center py-16 text-center px-6">
                 <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
                   <span className="material-symbols-outlined text-gray-300 text-3xl">create_new_folder</span>
                 </div>
                 <h3 className="text-gray-900 font-bold mb-1">Pastas vazias</h3>
-                <p className="text-sm text-gray-500">Comece a preencher suas pastas com anotações.</p>
+                <p className="text-sm text-gray-500">Suas anotações aparecerão aqui assim que você criá-las.</p>
               </div>
             )}
           </>
         )}
       </main>
+
+      {/* Note Detail Modal Overlay */}
+      {selectedNote && (
+        <div
+          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-md p-0 sm:p-6"
+          onClick={() => setSelectedNote(null)}
+        >
+          <div
+            className="bg-white w-full max-w-lg rounded-t-[32px] sm:rounded-[32px] p-8 overflow-hidden shadow-2xl transition-all transform animate-in slide-in-from-bottom duration-500 ease-out"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-8 sm:hidden" />
+
+            <div className="flex justify-between items-start mb-6">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#F0F7F7] text-[#008080] uppercase tracking-widest border border-[#008080]/10">
+                    📂 {selectedNote.category}
+                  </span>
+                </div>
+                <h2 className="text-2xl font-black text-[#111718] leading-tight tracking-tight">{selectedNote.title}</h2>
+              </div>
+              <button
+                onClick={() => setSelectedNote(null)}
+                className="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-full text-gray-400 hover:text-gray-900 hover:rotate-90 transition-all duration-300"
+              >
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
+
+            <div className="max-h-[50vh] overflow-y-auto no-scrollbar mb-8">
+              <p className="text-gray-600 text-[15px] leading-[1.8] whitespace-pre-wrap font-medium">
+                {selectedNote.preview}
+              </p>
+            </div>
+
+            <div className="flex gap-4">
+              <button
+                onClick={() => setSelectedNote(null)}
+                className="flex-1 py-4 px-6 bg-[#111718] text-white rounded-[20px] font-bold shadow-xl shadow-black/10 hover:bg-black active:scale-[0.98] transition-all"
+              >
+                Voltar
+              </button>
+              <button
+                className="w-14 h-14 flex items-center justify-center bg-gray-50 border border-gray-100 text-[#008080] rounded-[20px] hover:bg-white active:scale-[0.98] transition-all group"
+                title="Editar (em breve)"
+              >
+                <span className="material-symbols-outlined group-hover:scale-110 transition-transform">edit_note</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
