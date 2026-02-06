@@ -1,0 +1,9 @@
+
+{
+  "name": "EstudaApp - Gestão de Estudos",
+  "description": "Uma plataforma completa para gerenciar ciclos de estudo, cronometrar sessões, organizar matérias e tomar notas inteligentes.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
