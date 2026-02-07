@@ -9,30 +9,61 @@ const Dashboard: React.FC = () => {
   const [sessions, setSessions] = useState<StudySession[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [allSessions, setAllSessions] = useState<StudySession[]>([]);
 
   useEffect(() => {
     const loadData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
 
-      const [subjectsRes, sessionsRes] = await Promise.all([
-        supabase.from('subjects').select('*').order('percentage', { ascending: false }),
-        supabase.from('sessions').select('*').order('created_at', { ascending: false }).limit(5)
+      // Get sessions for today
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const [subjectsRes, sessionsRes, allSessionsRes] = await Promise.all([
+        supabase.from('subjects').select('*').order('name', { ascending: true }),
+        supabase.from('sessions').select('*').order('created_at', { ascending: false }).limit(5),
+        supabase.from('sessions').select('*').gte('created_at', today.toISOString())
       ]);
 
       if (subjectsRes.data) setSubjects(subjectsRes.data);
       if (sessionsRes.data) setSessions(sessionsRes.data);
+      if (allSessionsRes.data) setAllSessions(allSessionsRes.data);
       setLoading(false);
     };
 
     loadData();
   }, []);
 
-  const chartData = subjects.length > 0
-    ? subjects.map(s => ({ name: s.name, value: s.percentage || 10, color: s.color || '#008080' }))
-    : [{ name: 'Nenhuma matéria', value: 100, color: '#f3f4f6' }];
+  const parseDuration = (durationStr: string): number => {
+    if (!durationStr) return 0;
+    const value = parseInt(durationStr);
+    if (isNaN(value)) return 0;
+    if (durationStr.includes('h')) return value * 60;
+    if (durationStr.includes('m')) return value;
+    if (durationStr.includes('s')) return value / 60;
+    return value;
+  };
 
-  const totalStudiedToday = "4.5"; // This would ideally be calculated from sessions
+  const aggregatedData = allSessions.reduce((acc: Record<string, number>, session) => {
+    const duration = parseDuration(session.duration || '');
+    acc[session.subject_name] = (acc[session.subject_name] || 0) + duration;
+    return acc;
+  }, {});
+
+  const totalMinutesToday: number = (Object.values(aggregatedData) as number[]).reduce((a: number, b: number) => a + b, 0);
+  const totalStudiedToday = (totalMinutesToday / 60).toFixed(1);
+
+  const chartData = Object.keys(aggregatedData).length > 0
+    ? Object.entries(aggregatedData).map(([name, value]) => {
+      const subject = subjects.find(s => s.name === name);
+      return {
+        name,
+        value,
+        color: subject?.color || '#008080'
+      };
+    })
+    : [{ name: 'Nenhuma matéria estudada', value: 1, color: '#f3f4f6' }];
 
   if (loading) {
     return (
@@ -43,12 +74,12 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <div className="px-6 py-4">
+    <div className="px-6 py-4 pb-32 overflow-y-auto max-h-screen">
       {/* Header */}
       <header className="flex items-center justify-between mb-8 mt-4">
         <div className="flex items-center gap-3">
           <div className="size-10 rounded-full bg-teal-50 border border-teal-100 flex items-center justify-center overflow-hidden">
-            <img src={user?.user_metadata?.avatar_url || "https://picsum.photos/seed/alex/100"} alt="Avatar" className="w-full h-full object-cover" />
+            <img src={user?.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.email}`} alt="Avatar" className="w-full h-full object-cover" />
           </div>
           <div>
             <p className="text-[11px] text-[#618389] font-medium">
@@ -65,12 +96,12 @@ const Dashboard: React.FC = () => {
       {/* Main Stats */}
       <section className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight">Seu Progresso</h1>
-        <p className="text-[#618389] mt-1">Você estudou {totalStudiedToday} horas hoje.</p>
+        <p className="text-[#618389] mt-1">Você estudou {totalStudiedToday === "0.0" ? "0" : totalStudiedToday} horas hoje.</p>
       </section>
 
-      {/* Cycle Progress Chart */}
+      {/* Study Distribution Chart */}
       <section className="mb-8">
-        <h3 className="text-xs font-bold uppercase tracking-widest text-[#618389] mb-3">Ciclo Atual</h3>
+        <h3 className="text-xs font-bold uppercase tracking-widest text-[#618389] mb-3">Distribuição de Estudo (Hoje)</h3>
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col items-center">
           <div className="relative size-48 flex items-center justify-center mb-6">
             <ResponsiveContainer width="100%" height="100%">
@@ -86,30 +117,29 @@ const Dashboard: React.FC = () => {
                   stroke="none"
                 >
                   {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+                    <Cell key={`cell-${index}`} fill={(entry as any).color} />
                   ))}
                 </Pie>
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute flex flex-col items-center justify-center">
-              <span className="text-2xl font-bold">{subjects.length}</span>
-              <span className="text-[10px] text-[#618389] uppercase tracking-tighter">Matérias</span>
+              <span className="text-2xl font-bold">{totalMinutesToday >= 60 ? Math.floor(totalMinutesToday / 60) + 'h' : Math.floor(totalMinutesToday) + 'm'}</span>
+              <span className="text-[10px] text-[#618389] uppercase tracking-tighter">Estudados</span>
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 w-full">
-            {subjects.slice(0, 3).map((s) => (
-              <div key={s.id} className="flex flex-col items-center text-center">
-                <div className="size-2 rounded-full mb-1" style={{ backgroundColor: s.color || '#008080' }}></div>
-                <span className="text-[11px] font-semibold truncate w-full">{s.name}</span>
-                <span className="text-[10px] text-[#618389]">{s.percentage}%</span>
+          <div className="grid grid-cols-2 gap-x-8 gap-y-3 w-full">
+            {chartData.filter(d => d.name !== 'Nenhuma matéria estudada').map((d: any, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <div className="size-2 rounded-full shrink-0" style={{ backgroundColor: d.color }}></div>
+                <span className="text-[11px] font-semibold truncate flex-1">{d.name}</span>
+                <span className="text-[10px] text-[#618389] font-bold">{d.value >= 60 ? (d.value / 60).toFixed(1) + 'h' : Math.floor(d.value) + 'm'}</span>
               </div>
             ))}
+            {Object.keys(aggregatedData).length === 0 && (
+              <p className="col-span-2 text-center text-[11px] text-gray-400 italic">Inicie o timer para ver seus dados aqui</p>
+            )}
           </div>
-
-          <button className="mt-6 w-full py-3 bg-teal-50 text-[#008080] font-bold rounded-xl text-sm transition-all hover:bg-teal-100">
-            Editar Pesos do Ciclo
-          </button>
         </div>
       </section>
 
@@ -140,11 +170,6 @@ const Dashboard: React.FC = () => {
           )}
         </div>
       </section>
-
-      {/* Floating Action Button */}
-      <button className="fixed bottom-24 right-6 size-14 bg-[#008080] text-white rounded-full shadow-lg shadow-teal-600/30 flex items-center justify-center z-20">
-        <span className="material-symbols-outlined text-2xl font-bold">play_arrow</span>
-      </button>
     </div>
   );
 };

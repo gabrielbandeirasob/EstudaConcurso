@@ -46,6 +46,12 @@ const Timer: React.FC<TimerProps> = ({ onBack }) => {
   };
 
   useEffect(() => {
+    if (!isActive) {
+      setSeconds(initialSeconds);
+    }
+  }, [initialSeconds, isActive]);
+
+  useEffect(() => {
     let interval: any = null;
     if (isActive && seconds > 0) {
       interval = setInterval(() => {
@@ -181,13 +187,42 @@ const Timer: React.FC<TimerProps> = ({ onBack }) => {
           </svg>
           <div className="flex flex-col items-center">
             <div className="flex items-baseline text-[#111718]">
-              <span className="text-7xl font-bold tracking-tighter">{time.m}</span>
-              <span className="text-4xl font-light opacity-30 mx-1">:</span>
-              <span className="text-7xl font-bold tracking-tighter">{time.s}</span>
+              {isActive ? (
+                <>
+                  <span className="text-7xl font-bold tracking-tighter">{time.m}</span>
+                  <span className="text-4xl font-light opacity-30 mx-1">:</span>
+                  <span className="text-7xl font-bold tracking-tighter">{time.s}</span>
+                </>
+              ) : (
+                <div className="flex flex-col items-center gap-4">
+                  <div className="flex items-center gap-6">
+                    <button
+                      onClick={() => setInitialSeconds(prev => Math.max(60, prev - 300))}
+                      className="size-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 active:scale-95 transition-all"
+                    >
+                      <span className="material-symbols-outlined">remove</span>
+                    </button>
+                    <div className="flex items-baseline">
+                      <span className="text-7xl font-bold tracking-tighter">{Math.floor(initialSeconds / 60)}</span>
+                      <span className="text-2xl font-bold opacity-30 ml-1">m</span>
+                    </div>
+                    <button
+                      onClick={() => setInitialSeconds(prev => prev + 300)}
+                      className="size-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 active:scale-95 transition-all"
+                    >
+                      <span className="material-symbols-outlined">add</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
             <p className="text-[#618389] text-xs font-bold tracking-widest mt-2 uppercase">Trabalho Profundo</p>
           </div>
         </div>
+
+        {!isActive && (
+          <p className="mt-4 text-[10px] text-[#618389] uppercase tracking-widest font-bold">Ajuste o tempo acima</p>
+        )}
 
         {selectedTopic && (
           <div className="mt-12 flex flex-col items-center gap-2 animate-in fade-in slide-in-from-bottom duration-500">

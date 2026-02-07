@@ -8,7 +8,6 @@ const Subjects: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState('');
-  const [newTime, setNewTime] = useState('');
 
   // Topics state
   const [expandedSubjects, setExpandedSubjects] = useState<string[]>([]);
@@ -55,7 +54,6 @@ const Subjects: React.FC = () => {
       const { error } = await supabase.from('subjects').insert([
         {
           name: newName,
-          planned_time: newTime,
           user_id: user.id,
           icon: 'book',
           color: '#008080',
@@ -66,7 +64,6 @@ const Subjects: React.FC = () => {
       if (error) throw error;
 
       setNewName('');
-      setNewTime('');
       setShowAddForm(false);
       await fetchSubjects();
     } catch (error: any) {
@@ -151,13 +148,6 @@ const Subjects: React.FC = () => {
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
               />
-              <input
-                type="text"
-                placeholder="Tempo planejado (ex: 2h)"
-                className="w-full p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#008080]/20 outline-none"
-                value={newTime}
-                onChange={(e) => setNewTime(e.target.value)}
-              />
             </div>
             <div className="flex gap-2">
               <button
@@ -200,7 +190,7 @@ const Subjects: React.FC = () => {
                   <div className="flex-1 cursor-pointer" onClick={() => toggleSubject(subject.id)}>
                     <p className="text-[#111718] text-base font-bold leading-tight">{subject.name}</p>
                     <p className="text-[#618389] text-[11px] font-medium uppercase tracking-wider mt-0.5">
-                      {subject.topics?.length || 0} Tópicos • {subject.planned_time || '0h'}
+                      {subject.topics?.length || 0} Tópicos
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
