@@ -98,39 +98,6 @@ const Subjects: React.FC = () => {
     }
   };
 
-  const handleReorder = async (index: number, direction: 'up' | 'down') => {
-    if (direction === 'up' && index === 0) return;
-    if (direction === 'down' && index === subjects.length - 1) return;
-
-    const newSubjects = [...subjects];
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-
-    // Swap items
-    [newSubjects[index], newSubjects[targetIndex]] = [newSubjects[targetIndex], newSubjects[index]];
-
-    // Update local state temporarily to show immediate feedback
-    setSubjects(newSubjects);
-
-    // Update order_index for swapped items in backend
-    try {
-      const itemA = newSubjects[index];
-      const itemB = newSubjects[targetIndex];
-
-      await supabase.from('subjects').upsert([
-        { id: itemA.id, order_index: index, user_id: user.id },
-        { id: itemB.id, order_index: targetIndex, user_id: user.id }
-      ]);
-
-      itemA.order_index = index;
-      itemB.order_index = targetIndex;
-      // setSubjects([...newSubjects]); // already set
-
-    } catch (err) {
-      console.error("Failed to reorder", err);
-      fetchSubjects(); // Revert on error
-    }
-  };
-
   const addTopic = async (subjectId: string) => {
     const topicName = newTopicNames[subjectId];
     if (!topicName?.trim()) return;
@@ -223,22 +190,6 @@ const Subjects: React.FC = () => {
             <div key={subject.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 group">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex flex-col gap-1 mr-2 opacity-50">
-                    <button
-                      onClick={() => handleReorder(index, 'up')}
-                      disabled={index === 0}
-                      className="hover:text-[#008080] disabled:opacity-20 transition-colors"
-                    >
-                      <span className="material-symbols-outlined text-lg">arrow_drop_up</span>
-                    </button>
-                    <button
-                      onClick={() => handleReorder(index, 'down')}
-                      disabled={index === subjects.length - 1}
-                      className="hover:text-[#008080] disabled:opacity-20 transition-colors"
-                    >
-                      <span className="material-symbols-outlined text-lg">arrow_drop_down</span>
-                    </button>
-                  </div>
                   <div className={`size-10 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-sm`} style={{ backgroundColor: subject.color }}>
                     {subject.name.charAt(0)}
                   </div>
