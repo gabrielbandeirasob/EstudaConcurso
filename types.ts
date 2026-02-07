@@ -13,6 +13,7 @@ export interface Subject {
   color: string;
   percentage: number;
   topics?: Topic[];
+  order_index?: number;
 }
 
 export interface Session {
@@ -23,6 +24,7 @@ export interface Session {
   status: 'Concluído' | 'Em andamento';
   icon: string;
   color: string;
+  notes?: string;
 }
 
 export interface Note {

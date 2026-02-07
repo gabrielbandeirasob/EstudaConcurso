@@ -1,271 +1,321 @@
-
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../src/lib/supabase';
 import { Subject } from '../types';
 
 const Subjects: React.FC = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [newSubject, setNewSubject] = useState('');
   const [loading, setLoading] = useState(true);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newName, setNewName] = useState('');
+  const [user, setUser] = useState<any>(null);
 
-  // Topics state
-  const [expandedSubjects, setExpandedSubjects] = useState<string[]>([]);
+  // Topic management states
   const [newTopicNames, setNewTopicNames] = useState<{ [key: string]: string }>({});
-  const [isActionLoading, setIsActionLoading] = useState(false);
+  const [showTopicInput, setShowTopicInput] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
     fetchSubjects();
   }, []);
 
   const fetchSubjects = async () => {
-    setLoading(true);
     try {
-      // Fetch subjects and their topics
-      const [subjectsRes, topicsRes] = await Promise.all([
-        supabase.from('subjects').select('*').order('created_at', { ascending: true }),
-        supabase.from('topics').select('*').order('created_at', { ascending: true })
-      ]);
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
 
-      if (subjectsRes.error) throw subjectsRes.error;
-      if (topicsRes.error) throw topicsRes.error;
+      // Fetch subjects ordered by order_index, then name
+      const { data: subjectsData, error: subjectsError } = await supabase
+        .from('subjects')
+        .select('*')
+        .order('order_index', { ascending: true })
+        .order('name', { ascending: true });
 
-      const fetchedSubjects = (subjectsRes.data || []).map(s => ({
-        ...s,
-        topics: (topicsRes.data || []).filter(t => t.subject_id === s.id)
-      }));
+      if (subjectsError) throw subjectsError;
 
-      setSubjects(fetchedSubjects);
-    } catch (error: any) {
-      console.error('Error fetching data:', error.message);
+      // Fetch all topics for these subjects
+      const { data: topicsData, error: topicsError } = await supabase
+        .from('topics')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (topicsError) throw topicsError;
+
+      if (subjectsData) {
+        const subjectsWithTopics = subjectsData.map(s => ({
+          ...s,
+          topics: topicsData ? topicsData.filter(t => t.subject_id === s.id) : []
+        }));
+        setSubjects(subjectsWithTopics);
+      }
+    } catch (error) {
+      console.error('Error fetching subjects:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const addSubject = async () => {
-    if (!newName || isActionLoading) return;
+  const generateColor = () => {
+    // Generate distinct, vibrant colors
+    const hues = [160, 200, 240, 280, 320, 30, 60, 90, 120];
+    const randomHue = hues[Math.floor(Math.random() * hues.length)];
+    return `hsl(${randomHue}, 70%, 45%)`;
+  };
 
-    setIsActionLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Usuário não autenticado');
+  const addSubject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSubject.trim() || !user) return;
 
-      const { error } = await supabase.from('subjects').insert([
-        {
-          name: newName,
-          user_id: user.id,
-          icon: 'book',
-          color: '#008080',
-          percentage: 0
-        },
-      ]);
+    // Calculate next order index
+    const maxIndex = subjects.reduce((max, s) => Math.max(max, s.order_index || 0), 0);
 
-      if (error) throw error;
+    const { data, error } = await supabase.from('subjects').insert([
+      {
+        name: newSubject,
+        user_id: user.id,
+        icon: 'book',
+        color: generateColor(), // Use generated color
+        percentage: 0,
+        order_index: maxIndex + 1
+      },
+    ]).select();
 
-      setNewName('');
-      setShowAddForm(false);
-      await fetchSubjects();
-    } catch (error: any) {
-      alert('Erro ao adicionar matéria: ' + error.message);
-    } finally {
-      setIsActionLoading(false);
+    if (error) {
+      alert('Erro ao adicionar matéria');
+      console.error(error);
+    } else {
+      setSubjects([...subjects, { ...data[0], topics: [] }]);
+      setNewSubject('');
     }
   };
 
   const deleteSubject = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta matéria e todos os seus tópicos?')) return;
+    if (!confirm('Tem certeza que deseja excluir esta matéria?')) return;
 
     const { error } = await supabase.from('subjects').delete().eq('id', id);
+
     if (error) {
-      console.error('Error deleting subject:', error.message);
-      alert('Erro ao excluir matéria: ' + error.message);
+      alert('Erro ao excluir matéria');
     } else {
-      fetchSubjects();
+      setSubjects(subjects.filter((s) => s.id !== id));
     }
   };
 
-  const toggleSubject = (id: string) => {
-    setExpandedSubjects(prev =>
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
-    );
+  const handleReorder = async (index: number, direction: 'up' | 'down') => {
+    if (direction === 'up' && index === 0) return;
+    if (direction === 'down' && index === subjects.length - 1) return;
+
+    const newSubjects = [...subjects];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+
+    // Swap items
+    [newSubjects[index], newSubjects[targetIndex]] = [newSubjects[targetIndex], newSubjects[index]];
+
+    // Update local state temporarily to show immediate feedback
+    setSubjects(newSubjects);
+
+    // Update order_index for swapped items in backend
+    try {
+      const itemA = newSubjects[index];
+      const itemB = newSubjects[targetIndex];
+
+      await supabase.from('subjects').upsert([
+        { id: itemA.id, order_index: index, user_id: user.id },
+        { id: itemB.id, order_index: targetIndex, user_id: user.id }
+      ]);
+
+      itemA.order_index = index;
+      itemB.order_index = targetIndex;
+      // setSubjects([...newSubjects]); // already set
+
+    } catch (err) {
+      console.error("Failed to reorder", err);
+      fetchSubjects(); // Revert on error
+    }
   };
 
   const addTopic = async (subjectId: string) => {
     const topicName = newTopicNames[subjectId];
-    if (!topicName || isActionLoading) return;
+    if (!topicName?.trim()) return;
 
-    setIsActionLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Usuário não autenticado');
-
-      const { error } = await supabase.from('topics').insert([
-        {
-          name: topicName,
-          subject_id: subjectId,
-          user_id: user.id
-        }
-      ]);
+      const { data, error } = await supabase.from('topics').insert([{
+        subject_id: subjectId,
+        name: topicName.trim(),
+        user_id: user.id
+      }]).select();
 
       if (error) throw error;
 
-      setNewTopicNames(prev => ({ ...prev, [subjectId]: '' }));
-      await fetchSubjects();
-    } catch (error: any) {
-      alert('Erro ao adicionar tópico: ' + error.message);
-    } finally {
-      setIsActionLoading(false);
+      // Update local state
+      const newTopic = data[0];
+      setSubjects(subjects.map(s => {
+        if (s.id === subjectId) {
+          return {
+            ...s,
+            topics: [...(s.topics || []), newTopic]
+          };
+        }
+        return s;
+      }));
+
+      // Clear input
+      setNewTopicNames({ ...newTopicNames, [subjectId]: '' });
+      setShowTopicInput({ ...showTopicInput, [subjectId]: false });
+
+    } catch (error) {
+      console.error('Error adding topic:', error);
+      alert('Erro ao adicionar tópico');
     }
   };
 
-  const deleteTopic = async (id: string) => {
-    const { error } = await supabase.from('topics').delete().eq('id', id);
-    if (error) {
-      console.error('Error deleting topic:', error.message);
-      alert('Erro ao excluir tópico: ' + error.message);
-    } else {
-      fetchSubjects();
+  const deleteTopic = async (topicId: string, subjectId: string) => {
+    if (!confirm('Excluir tópico?')) return;
+    try {
+      const { error } = await supabase.from('topics').delete().eq('id', topicId);
+      if (error) throw error;
+
+      setSubjects(subjects.map(s => {
+        if (s.id === subjectId) {
+          return {
+            ...s,
+            topics: s.topics?.filter(t => t.id !== topicId)
+          };
+        }
+        return s;
+      }));
+    } catch (e) {
+      console.error(e);
+      alert('Erro ao excluir tópico');
     }
   };
 
   return (
-    <div className="min-h-screen pb-32">
-      <header className="px-6 pt-12 pb-6">
-        <h1 className="text-3xl font-bold tracking-tight text-[#111718] mt-4">Matérias e Tópicos</h1>
-        <p className="text-[#618389] text-sm mt-1">{subjects.length} matérias cadastradas</p>
+    <div className="px-6 py-4 pb-32">
+      <header className="mb-8 mt-4">
+        <h1 className="text-3xl font-bold tracking-tight text-[#111718]">Matérias</h1>
+        <p className="text-[#618389] mt-1">Gerencie seu ciclo de estudos.</p>
       </header>
 
-      <main className="px-6 space-y-4">
-        {showAddForm && (
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4 mb-4 animate-in slide-in-from-top duration-300">
-            <h3 className="font-bold text-[#111718]">Nova Matéria</h3>
-            <div className="space-y-3">
-              <input
-                type="text"
-                placeholder="Nome da matéria (ex: Direito Administrativo)"
-                className="w-full p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#008080]/20 outline-none"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-              />
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={addSubject}
-                disabled={isActionLoading}
-                className="flex-1 bg-[#008080] text-white py-3 rounded-xl font-bold shadow-md shadow-[#008080]/10"
-              >
-                {isActionLoading ? 'Salvando...' : 'Salvar'}
-              </button>
-              <button
-                onClick={() => setShowAddForm(false)}
-                className="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        )}
+      <form onSubmit={addSubject} className="mb-8 sticky top-0 bg-[#FDFBF7] z-10 py-2">
+        <div className="flex gap-2 p-2 bg-white rounded-2xl shadow-sm border border-gray-100 placeholder:text-gray-400">
+          <input
+            type="text"
+            value={newSubject}
+            onChange={(e) => setNewSubject(e.target.value)}
+            placeholder="Nova matéria..."
+            className="flex-1 bg-transparent border-none focus:ring-0 text-[#111718] font-medium"
+          />
+          <button
+            type="submit"
+            disabled={!newSubject.trim()}
+            className="size-10 bg-[#111718] text-white rounded-xl flex items-center justify-center disabled:opacity-50 active:scale-95 transition-all"
+          >
+            <span className="material-symbols-outlined">add</span>
+          </button>
+        </div>
+      </form>
 
-        <section className="space-y-4">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#008080]"></div>
-            </div>
-          ) : subjects.length === 0 ? (
-            <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-200">
-              <span className="material-symbols-outlined text-gray-300 text-4xl mb-2">library_books</span>
-              <p className="text-gray-500 text-sm">Nenhuma matéria encontrada.<br />Clique no + para adicionar.</p>
-            </div>
-          ) : (
-            subjects.map((subject) => (
-              <div key={subject.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden transition-all">
-                <div className="p-4 flex items-center gap-4">
-                  <div
-                    onClick={() => toggleSubject(subject.id)}
-                    className="flex items-center justify-center rounded-xl bg-[#008080]/10 text-[#008080] shrink-0 size-12 cursor-pointer hover:scale-105 transition-transform"
-                  >
-                    <span className="material-symbols-outlined text-2xl">{subject.icon || 'book'}</span>
-                  </div>
-                  <div className="flex-1 cursor-pointer" onClick={() => toggleSubject(subject.id)}>
-                    <p className="text-[#111718] text-base font-bold leading-tight">{subject.name}</p>
-                    <p className="text-[#618389] text-[11px] font-medium uppercase tracking-wider mt-0.5">
-                      {subject.topics?.length || 0} Tópicos
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1">
+      {loading ? (
+        <div className="flex justify-center p-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#008080]"></div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {subjects.map((subject, index) => (
+            <div key={subject.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 group">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex flex-col gap-1 mr-2 opacity-50">
                     <button
-                      onClick={() => toggleSubject(subject.id)}
-                      className={`size-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-50 transition-transform duration-300 ${expandedSubjects.includes(subject.id) ? 'rotate-180' : ''}`}
+                      onClick={() => handleReorder(index, 'up')}
+                      disabled={index === 0}
+                      className="hover:text-[#008080] disabled:opacity-20 transition-colors"
                     >
-                      <span className="material-symbols-outlined text-[20px]">expand_more</span>
+                      <span className="material-symbols-outlined text-lg">arrow_drop_up</span>
                     </button>
                     <button
-                      onClick={() => deleteSubject(subject.id)}
-                      className="size-8 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50"
+                      onClick={() => handleReorder(index, 'down')}
+                      disabled={index === subjects.length - 1}
+                      className="hover:text-[#008080] disabled:opacity-20 transition-colors"
                     >
-                      <span className="material-symbols-outlined text-[20px]">delete</span>
+                      <span className="material-symbols-outlined text-lg">arrow_drop_down</span>
                     </button>
+                  </div>
+                  <div className={`size-10 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-sm`} style={{ backgroundColor: subject.color }}>
+                    {subject.name.charAt(0)}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-[#111718] leading-tight">{subject.name}</h3>
+                    <p className="text-[10px] text-[#618389] font-medium uppercase tracking-wider">{subject.topics?.length || 0} Tópicos</p>
                   </div>
                 </div>
 
-                {expandedSubjects.includes(subject.id) && (
-                  <div className="border-t border-gray-50 bg-[#FBFBFA] p-4 animate-in slide-in-from-top duration-200">
-                    <div className="space-y-3 mb-4">
-                      <p className="text-[10px] font-bold text-[#618389] uppercase tracking-widest px-1">Tópicos da Matéria</p>
-                      {subject.topics && subject.topics.length > 0 ? (
-                        <div className="space-y-2">
-                          {subject.topics.map(topic => (
-                            <div key={topic.id} className="flex items-center justify-between bg-white px-3 py-2.5 rounded-xl border border-gray-100 shadow-sm group">
-                              <span className="text-sm text-gray-700 font-medium">{topic.name}</span>
-                              <button
-                                onClick={() => deleteTopic(topic.id)}
-                                className="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                <span className="material-symbols-outlined text-lg">close</span>
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-[11px] text-gray-400 italic px-1">Nenhum tópico adicionado ainda.</p>
-                      )}
-                    </div>
+                <button
+                  onClick={() => deleteSubject(subject.id)}
+                  className="size-8 rounded-full flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
+                >
+                  <span className="material-symbols-outlined text-lg">delete</span>
+                </button>
+              </div>
 
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="Novo tópico..."
-                        className="flex-1 text-sm p-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#008080]/20 outline-none bg-white"
-                        value={newTopicNames[subject.id] || ''}
-                        onChange={(e) => setNewTopicNames({ ...newTopicNames, [subject.id]: e.target.value })}
-                        onKeyPress={(e) => e.key === 'Enter' && addTopic(subject.id)}
-                      />
-                      <button
-                        onClick={() => addTopic(subject.id)}
-                        disabled={!newTopicNames[subject.id] || isActionLoading}
-                        className="px-4 bg-[#008080] text-white rounded-xl font-bold text-sm disabled:opacity-50 transition-all active:scale-95"
-                      >
-                        <span className="material-symbols-outlined text-xl">add</span>
-                      </button>
+              {/* Topics Section */}
+              <div className="mt-4 pl-[3.25rem] space-y-2">
+                {/* Existing Topics */}
+                {(subject.topics || []).map(topic => (
+                  <div key={topic.id} className="flex items-center justify-between group/topic py-1">
+                    <div className="flex items-center gap-2">
+                      <div className="size-1.5 rounded-full bg-gray-200"></div>
+                      <span className="text-sm text-gray-600">{topic.name}</span>
                     </div>
+                    <button
+                      onClick={() => deleteTopic(topic.id, subject.id)}
+                      className="text-gray-300 hover:text-red-400 opacity-0 group-hover/topic:opacity-100 transition-opacity"
+                    >
+                      <span className="material-symbols-outlined text-sm">close</span>
+                    </button>
                   </div>
+                ))}
+
+                {/* Add Topic Input */}
+                {showTopicInput[subject.id] ? (
+                  <div className="flex items-center gap-2 mt-2 animate-in fade-in slide-in-from-top-1">
+                    <input
+                      autoFocus
+                      type="text"
+                      placeholder="Nome do tópico..."
+                      className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:ring-1 focus:ring-[#008080] outline-none"
+                      value={newTopicNames[subject.id] || ''}
+                      onChange={(e) => setNewTopicNames({ ...newTopicNames, [subject.id]: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') addTopic(subject.id);
+                        if (e.key === 'Escape') setShowTopicInput({ ...showTopicInput, [subject.id]: false });
+                      }}
+                    />
+                    <button
+                      onClick={() => addTopic(subject.id)}
+                      className="text-[#008080] hover:bg-teal-50 p-1 rounded"
+                    >
+                      <span className="material-symbols-outlined text-lg">check</span>
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowTopicInput({ ...showTopicInput, [subject.id]: true })}
+                    className="flex items-center gap-2 text-[11px] font-bold text-[#008080] hover:underline mt-2"
+                  >
+                    <span className="material-symbols-outlined text-sm">add</span> Adicionar tópico
+                  </button>
                 )}
               </div>
-            ))
-          )}
-        </section>
-      </main>
+            </div>
+          ))}
 
-      <div className="fixed bottom-24 right-6 flex flex-col items-center gap-1 z-10">
-        <button
-          onClick={() => setShowAddForm(true)}
-          className="flex items-center justify-center size-14 bg-[#008080] text-white rounded-full shadow-lg shadow-[#008080]/30 transition-transform active:scale-90"
-        >
-          <span className="material-symbols-outlined text-[28px]">add</span>
-        </button>
-        <span className="text-[10px] font-bold text-[#008080] uppercase tracking-wider">Materia</span>
-      </div>
+          {subjects.length === 0 && (
+            <div className="text-center py-12 px-4 rounded-3xl border-2 border-dashed border-gray-100">
+              <span className="material-symbols-outlined text-4xl text-gray-200 mb-2">auto_stories</span>
+              <p className="text-gray-400 text-sm">Adicione sua primeira matéria para começar.</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

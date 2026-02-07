@@ -15,6 +15,8 @@ const Timer: React.FC<TimerProps> = ({ onBack }) => {
   const [isActive, setIsActive] = useState(false);
   const [initialSeconds, setInitialSeconds] = useState(25 * 60);
   const [isActionLoading, setIsActionLoading] = useState(false);
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [sessionNotes, setSessionNotes] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -45,11 +47,26 @@ const Timer: React.FC<TimerProps> = ({ onBack }) => {
     }
   };
 
+  // Only update seconds when initialSeconds changes AND timer is NOT active/paused in middle
+  // We only want to update seconds if we are in the "setup" phase (seconds === initialSeconds of previous state, roughly)
+  // or more simply: if the user is adjusting the time, update the display.
+  // But if the user paused (seconds < initialSeconds), do NOT reset 'seconds' just because 'initialSeconds' might have been touched (though UI hides buttons when active).
   useEffect(() => {
-    if (!isActive) {
+    if (!isActive && seconds === initialSeconds) {
+      // This check is a bit weak if they paused exactly at initialSeconds, but practical.
+      // Actually, the +/- buttons update initialSeconds. We should sync seconds to it ONLY if not "in progress".
+      // Since buttons are hidden when isActive, we just need to ensure we don't reset if paused.
+      // We can check if seconds matches the OLD initialSeconds, but we don't have it.
+      // Simpler: The UI hides +/- when isActive. When !isActive, if we have NOT started (seconds === initialSeconds? No, that's circular).
+      // Let's assume if the user hits +/- they WANT to change the current time.
+      // If they paused, the Buttons are hidden? No, buttons are in the "else" block of isActive.
+      // So if paused (!isActive), buttons SHOW. If they click them, they change initialSeconds.
+      // If they change initialSeconds while paused, we PROBABLY want to reset the timer to that new time?
+      // Or do we want to adjust the REMAINING time?
+      // Standard behavior: Changing duration resets the timer.
       setSeconds(initialSeconds);
     }
-  }, [initialSeconds, isActive]);
+  }, [initialSeconds]);
 
   useEffect(() => {
     let interval: any = null;
@@ -59,7 +76,7 @@ const Timer: React.FC<TimerProps> = ({ onBack }) => {
       }, 1000);
     } else if (seconds === 0 && isActive) {
       setIsActive(false);
-      handleSessionSave();
+      setShowCompletionModal(true); // Open modal instead of auto-saving
     }
     return () => clearInterval(interval);
   }, [isActive, seconds]);
@@ -72,12 +89,6 @@ const Timer: React.FC<TimerProps> = ({ onBack }) => {
     const durationMinutes = Math.floor(durationSeconds / 60);
     const durationDisplay = durationMinutes > 0 ? `${durationMinutes}m` : `${durationSeconds}s`;
 
-    console.log('Attempting to save session:', {
-      subject: selectedSubject.name,
-      topic: selectedTopic?.name,
-      duration: durationDisplay
-    });
-
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Usuário não autenticado');
@@ -89,12 +100,16 @@ const Timer: React.FC<TimerProps> = ({ onBack }) => {
         status: 'Concluído',
         user_id: user.id,
         icon: selectedSubject.icon || 'book',
-        color: 'bg-teal-50 text-teal-600'
+        color: 'bg-teal-50 text-teal-600',
+        notes: sessionNotes // Save the notes
       }]);
 
       if (error) throw error;
-      alert('Sessão concluída e salva!');
-      fetchData(); // Refresh topics if needed
+      alert('Sessão salva com sucesso!');
+      setShowCompletionModal(false);
+      setSessionNotes('');
+      setSeconds(initialSeconds); // Reset timer
+      fetchData();
     } catch (error: any) {
       console.error('Error saving session:', error);
       alert('Erro ao salvar sessão: ' + error.message);
@@ -104,7 +119,6 @@ const Timer: React.FC<TimerProps> = ({ onBack }) => {
   };
 
   const handleSubjectChange = (value: string) => {
-    // Try to find by ID first, then by Name (fallback for easier automation)
     const subject = subjects.find(s => s.id === value || s.name === value) || null;
     setSelectedSubject(subject);
     if (subject && subject.topics && subject.topics.length > 0) {
@@ -249,13 +263,14 @@ const Timer: React.FC<TimerProps> = ({ onBack }) => {
           </button>
           <button
             onClick={() => {
+              // Finish Early logic
               if (isActive || seconds < initialSeconds) {
-                if (confirm('Deseja parar e salvar o progresso atual?')) {
-                  handleSessionSave();
-                }
+                setShowCompletionModal(true);
+                setIsActive(false);
+              } else {
+                // Reset if not started
+                setSeconds(initialSeconds);
               }
-              setIsActive(false);
-              setSeconds(initialSeconds);
             }}
             className="size-16 bg-white text-[#111718] rounded-2xl font-bold border border-gray-100 shadow-sm active:scale-95 transition-all flex items-center justify-center"
           >
@@ -263,6 +278,49 @@ const Timer: React.FC<TimerProps> = ({ onBack }) => {
           </button>
         </div>
       </footer>
+
+      {/* Completion Modal */}
+      {showCompletionModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
+            <h3 className="text-xl font-bold text-[#111718] mb-2">Sessão Finalizada</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Tempo estudado: <span className="text-[#008080] font-bold">
+                {Math.floor((initialSeconds - seconds) / 60)}m {(initialSeconds - seconds) % 60}s
+              </span>
+            </p>
+
+            <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Anotações (Opcional)</label>
+            <textarea
+              className="w-full h-32 bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-[#008080]/20 outline-none resize-none mb-6"
+              placeholder="O que você aprendeu hoje?"
+              value={sessionNotes}
+              onChange={(e) => setSessionNotes(e.target.value)}
+            />
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowCompletionModal(false);
+                  setSessionNotes('');
+                  setSeconds(initialSeconds); // Reset without saving
+                }}
+                className="flex-1 py-3 text-gray-500 font-bold text-sm bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+                disabled={isActionLoading}
+              >
+                Descartar
+              </button>
+              <button
+                onClick={handleSessionSave}
+                className="flex-1 py-3 bg-[#008080] text-white font-bold text-sm rounded-xl hover:bg-[#006666] transition-colors flex items-center justify-center gap-2"
+                disabled={isActionLoading}
+              >
+                {isActionLoading ? <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span> : 'Salvar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
