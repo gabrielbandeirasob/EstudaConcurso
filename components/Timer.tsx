@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../src/lib/supabase';
-import { Subject } from '../types';
+import { Subject, Topic } from '../types';
 
 interface TimerProps {
   onBack: () => void;
@@ -10,20 +10,40 @@ interface TimerProps {
 const Timer: React.FC<TimerProps> = ({ onBack }) => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
+  const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [seconds, setSeconds] = useState(25 * 60);
   const [isActive, setIsActive] = useState(false);
-  const [initialSeconds] = useState(25 * 60);
+  const [initialSeconds, setInitialSeconds] = useState(25 * 60);
+  const [isActionLoading, setIsActionLoading] = useState(false);
 
   useEffect(() => {
-    const fetchSubjects = async () => {
-      const { data } = await supabase.from('subjects').select('*');
-      if (data && data.length > 0) {
-        setSubjects(data);
-        setSelectedSubject(data[0]);
-      }
-    };
-    fetchSubjects();
+    fetchData();
   }, []);
+
+  const fetchData = async () => {
+    try {
+      const [subjectsRes, topicsRes] = await Promise.all([
+        supabase.from('subjects').select('*').order('name', { ascending: true }),
+        supabase.from('topics').select('*').order('name', { ascending: true })
+      ]);
+
+      if (subjectsRes.data) {
+        const fetchedSubjects = (subjectsRes.data || []).map(s => ({
+          ...s,
+          topics: (topicsRes.data || []).filter(t => t.subject_id === s.id)
+        }));
+        setSubjects(fetchedSubjects);
+        if (fetchedSubjects.length > 0) {
+          setSelectedSubject(fetchedSubjects[0]);
+          if (fetchedSubjects[0].topics && fetchedSubjects[0].topics.length > 0) {
+            setSelectedTopic(fetchedSubjects[0].topics[0]);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading timer data:', error);
+    }
+  };
 
   useEffect(() => {
     let interval: any = null;
@@ -39,23 +59,58 @@ const Timer: React.FC<TimerProps> = ({ onBack }) => {
   }, [isActive, seconds]);
 
   const handleSessionSave = async () => {
-    if (!selectedSubject) return;
+    if (!selectedSubject || isActionLoading) return;
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    setIsActionLoading(true);
+    const durationSeconds = initialSeconds - seconds;
+    const durationMinutes = Math.floor(durationSeconds / 60);
+    const durationDisplay = durationMinutes > 0 ? `${durationMinutes}m` : `${durationSeconds}s`;
 
-    const durationMinutes = Math.floor(initialSeconds / 60);
+    console.log('Attempting to save session:', {
+      subject: selectedSubject.name,
+      topic: selectedTopic?.name,
+      duration: durationDisplay
+    });
 
-    await supabase.from('sessions').insert([{
-      subject_name: selectedSubject.name,
-      duration: `${durationMinutes}m`,
-      status: 'Concluído',
-      user_id: user.id,
-      icon: selectedSubject.icon,
-      color: 'bg-teal-50 text-teal-600'
-    }]);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
 
-    alert('Sessão concluída e salva!');
+      const { error } = await supabase.from('sessions').insert([{
+        subject_name: selectedSubject.name,
+        topic_name: selectedTopic?.name || null,
+        duration: durationDisplay,
+        status: 'Concluído',
+        user_id: user.id,
+        icon: selectedSubject.icon || 'book',
+        color: 'bg-teal-50 text-teal-600'
+      }]);
+
+      if (error) throw error;
+      alert('Sessão concluída e salva!');
+      fetchData(); // Refresh topics if needed
+    } catch (error: any) {
+      console.error('Error saving session:', error);
+      alert('Erro ao salvar sessão: ' + error.message);
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleSubjectChange = (value: string) => {
+    // Try to find by ID first, then by Name (fallback for easier automation)
+    const subject = subjects.find(s => s.id === value || s.name === value) || null;
+    setSelectedSubject(subject);
+    if (subject && subject.topics && subject.topics.length > 0) {
+      setSelectedTopic(subject.topics[0]);
+    } else {
+      setSelectedTopic(null);
+    }
+  };
+
+  const handleTopicChange = (value: string) => {
+    const topic = selectedSubject?.topics?.find(t => t.id === value || t.name === value) || null;
+    setSelectedTopic(topic);
   };
 
   const formatTime = (totalSeconds: number) => {
@@ -76,18 +131,35 @@ const Timer: React.FC<TimerProps> = ({ onBack }) => {
         <button onClick={onBack} className="p-2 text-gray-500 hover:bg-gray-100 rounded-full">
           <span className="material-symbols-outlined text-[28px]">chevron_left</span>
         </button>
-        <div className="flex flex-col items-center text-center">
-          <span className="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-bold">Focado em</span>
-          <select
-            className="bg-transparent text-[#111718] text-lg font-bold border-none text-center focus:ring-0"
-            value={selectedSubject?.id || ''}
-            onChange={(e) => setSelectedSubject(subjects.find(s => s.id === e.target.value) || null)}
-          >
-            {subjects.map(s => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-            {subjects.length === 0 && <option>Sem matérias</option>}
-          </select>
+        <div className="flex flex-col items-center text-center flex-1 mx-4 max-w-[240px]">
+          <span className="text-[10px] uppercase tracking-[0.2em] text-[#008080] font-bold mb-1">Foco Ativo</span>
+
+          <div className="w-full space-y-1">
+            <select
+              className="w-full bg-white/50 border border-teal-50 rounded-lg text-[#111718] text-sm font-bold text-center focus:ring-2 focus:ring-[#008080]/20 outline-none py-1 appearance-none"
+              value={selectedSubject?.id || ''}
+              onChange={(e) => handleSubjectChange(e.target.value)}
+              disabled={isActive}
+            >
+              <option value="" disabled>Selecione uma matéria</option>
+              {subjects.map(s => (
+                <option key={s.id} value={s.id} data-name={s.name}>{s.name}</option>
+              ))}
+              {subjects.length === 0 && <option value="">Sem matérias</option>}
+            </select>
+
+            <select
+              className="w-full bg-transparent text-[#618389] text-[11px] font-medium text-center focus:ring-0 outline-none border-none py-0 appearance-none italic"
+              value={selectedTopic?.id || ''}
+              onChange={(e) => handleTopicChange(e.target.value)}
+              disabled={isActive || !selectedSubject?.topics?.length}
+            >
+              <option value="">{selectedSubject?.topics?.length ? 'Escolha um tópico...' : 'Sem tópicos'}</option>
+              {selectedSubject?.topics?.map(t => (
+                <option key={t.id} value={t.id} data-name={t.name}>{t.name}</option>
+              ))}
+            </select>
+          </div>
         </div>
         <button className="p-2 text-gray-500 hover:bg-gray-100 rounded-full">
           <span className="material-symbols-outlined text-[28px]">settings</span>
@@ -116,29 +188,43 @@ const Timer: React.FC<TimerProps> = ({ onBack }) => {
             <p className="text-[#618389] text-xs font-bold tracking-widest mt-2 uppercase">Trabalho Profundo</p>
           </div>
         </div>
-        <div className="mt-12 flex items-center gap-2">
-          <span className="material-symbols-outlined text-[#008080] material-symbols-fill">eco</span>
-          <span className="text-gray-500 text-sm font-medium">Sessão de Foco</span>
-        </div>
+
+        {selectedTopic && (
+          <div className="mt-12 flex flex-col items-center gap-2 animate-in fade-in slide-in-from-bottom duration-500">
+            <div className="flex items-center gap-2 px-4 py-2 bg-teal-50 rounded-full border border-teal-100/50">
+              <span className="material-symbols-outlined text-[#008080] text-sm material-symbols-fill">target</span>
+              <span className="text-[#008080] text-xs font-bold uppercase tracking-wider">{selectedTopic.name}</span>
+            </div>
+          </div>
+        )}
       </main>
 
       <footer className="w-full max-w-[480px] p-8 pb-32">
         <div className="flex gap-4 w-full">
           <button
             onClick={() => setIsActive(!isActive)}
-            className="flex-1 h-14 bg-[#008080] text-white rounded-xl font-bold text-lg shadow-lg shadow-[#008080]/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+            className="flex-1 h-16 bg-[#111718] text-white rounded-2xl font-bold text-lg shadow-xl shadow-black/10 active:scale-95 transition-all flex items-center justify-center gap-3 group"
           >
-            <span className="material-symbols-outlined text-[24px] material-symbols-fill">
-              {isActive ? 'pause' : 'play_arrow'}
-            </span>
+            <div className="size-8 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-colors">
+              <span className="material-symbols-outlined text-[20px] material-symbols-fill">
+                {isActive ? 'pause' : 'play_arrow'}
+              </span>
+            </div>
             {isActive ? 'Pausar' : 'Iniciar'}
           </button>
           <button
-            onClick={() => { setIsActive(false); setSeconds(initialSeconds); }}
-            className="flex-1 h-14 bg-[#F5F2ED] text-[#111718] rounded-xl font-bold text-lg border border-gray-200 active:scale-95 transition-all flex items-center justify-center gap-2"
+            onClick={() => {
+              if (isActive || seconds < initialSeconds) {
+                if (confirm('Deseja parar e salvar o progresso atual?')) {
+                  handleSessionSave();
+                }
+              }
+              setIsActive(false);
+              setSeconds(initialSeconds);
+            }}
+            className="size-16 bg-white text-[#111718] rounded-2xl font-bold border border-gray-100 shadow-sm active:scale-95 transition-all flex items-center justify-center"
           >
             <span className="material-symbols-outlined text-[24px]">stop</span>
-            Parar
           </button>
         </div>
       </footer>

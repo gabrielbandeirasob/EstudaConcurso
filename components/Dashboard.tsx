@@ -128,7 +128,10 @@ const Dashboard: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-sm font-bold">{session.subject_name}</p>
-                    <p className="text-[10px] text-[#618389]">{session.duration} • {session.status}</p>
+                    <p className="text-[10px] text-[#618389]">
+                      {session.topic_name && <span className="text-[#008080] font-bold">{session.topic_name} • </span>}
+                      {session.duration} • {session.status}
+                    </p>
                   </div>
                 </div>
                 <span className="material-symbols-outlined text-gray-300">chevron_right</span>
