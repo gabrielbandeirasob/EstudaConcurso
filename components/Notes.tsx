@@ -17,8 +17,10 @@ const Notes: React.FC = () => {
   const [expandedFolders, setExpandedFolders] = useState<string[]>([]);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editPreview, setEditPreview] = useState('');
+  const [isActionLoading, setIsActionLoading] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -51,36 +53,42 @@ const Notes: React.FC = () => {
   };
 
   const addNote = async () => {
-    if (!newTitle || !selectedSubjectId) return;
+    if (!newTitle || !selectedSubjectId || isActionLoading) return;
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    setIsActionLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
 
-    const subject = subjects.find(s => s.id === selectedSubjectId);
-    if (!subject) return;
+      const subject = subjects.find(s => s.id === selectedSubjectId);
+      if (!subject) throw new Error('Matéria não encontrada');
 
-    const { error } = await supabase.from('notes').insert([
-      {
-        title: newTitle,
-        category: subject.name,
-        subject_id: subject.id,
-        preview: newPreview,
-        user_id: user.id,
-        tags: [subject.name.toUpperCase()]
-      },
-    ]);
+      const { error } = await supabase.from('notes').insert([
+        {
+          title: newTitle,
+          category: subject.name,
+          subject_id: subject.id,
+          preview: newPreview,
+          user_id: user.id,
+          tags: [subject.name.toUpperCase()]
+        },
+      ]);
 
-    if (error) {
-      console.error('Error adding note:', error.message);
-    } else {
+      if (error) throw error;
+
       setNewTitle('');
       setNewPreview('');
       setShowAddForm(false);
-      // Ensure the folder is expanded when a new note is added
+
       if (!expandedFolders.includes(subject.name)) {
         setExpandedFolders([...expandedFolders, subject.name]);
       }
-      fetchData();
+      await fetchData();
+    } catch (error: any) {
+      console.error('Error adding note:', error.message);
+      alert('Erro ao adicionar nota: ' + error.message);
+    } finally {
+      setIsActionLoading(false);
     }
   };
 
@@ -100,37 +108,54 @@ const Notes: React.FC = () => {
   };
 
   const handleUpdate = async () => {
-    if (!selectedNote || !editTitle) return;
+    if (!selectedNote || !editTitle || isActionLoading) return;
 
-    const { error } = await supabase
-      .from('notes')
-      .update({ title: editTitle, preview: editPreview })
-      .eq('id', selectedNote.id);
+    setIsActionLoading(true);
+    try {
+      const { error } = await supabase
+        .from('notes')
+        .update({ title: editTitle, preview: editPreview })
+        .eq('id', selectedNote.id);
 
-    if (error) {
-      console.error('Error updating note:', error.message);
-    } else {
+      if (error) throw error;
+
       setIsEditing(false);
       setSelectedNote({ ...selectedNote, title: editTitle, preview: editPreview });
-      fetchData();
+      await fetchData();
+    } catch (error: any) {
+      console.error('Error updating note:', error.message);
+      alert('Erro ao atualizar nota: ' + error.message);
+    } finally {
+      setIsActionLoading(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!selectedNote) return;
-    if (!confirm('Tem certeza que deseja excluir esta nota?')) return;
+    if (!selectedNote || isActionLoading) return;
 
-    const { error } = await supabase
-      .from('notes')
-      .delete()
-      .eq('id', selectedNote.id);
+    if (!showDeleteConfirm) {
+      setShowDeleteConfirm(true);
+      return;
+    }
 
-    if (error) {
-      console.error('Error deleting note:', error.message);
-    } else {
+    setIsActionLoading(true);
+    try {
+      const { error } = await supabase
+        .from('notes')
+        .delete()
+        .eq('id', selectedNote.id);
+
+      if (error) throw error;
+
       setIsEditing(false);
+      setShowDeleteConfirm(false);
       setSelectedNote(null);
-      fetchData();
+      await fetchData();
+    } catch (error: any) {
+      console.error('Error deleting note:', error.message);
+      alert('Erro ao excluir nota: ' + error.message);
+    } finally {
+      setIsActionLoading(false);
     }
   };
 
@@ -244,14 +269,15 @@ const Notes: React.FC = () => {
             <div className="flex gap-2 pt-2">
               <button
                 onClick={addNote}
-                disabled={subjects.length === 0}
-                className="flex-1 bg-[#008080] text-white py-3 rounded-xl font-bold disabled:opacity-50 shadow-md shadow-[#008080]/10"
+                disabled={subjects.length === 0 || isActionLoading}
+                className="flex-1 bg-[#008080] text-white py-3 rounded-xl font-bold disabled:opacity-50 shadow-md shadow-[#008080]/10 flex items-center justify-center"
               >
-                Salvar
+                {isActionLoading ? 'Salvando...' : 'Salvar'}
               </button>
               <button
                 onClick={() => setShowAddForm(false)}
-                className="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold"
+                disabled={isActionLoading}
+                className="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold disabled:opacity-50"
               >
                 Cancelar
               </button>
@@ -388,25 +414,49 @@ const Notes: React.FC = () => {
             <div className="flex gap-4">
               {isEditing ? (
                 <>
-                  <button
-                    onClick={handleUpdate}
-                    className="flex-1 py-4 px-6 bg-[#008080] text-white rounded-[20px] font-bold shadow-xl shadow-[#008080]/10 hover:bg-[#006666] active:scale-[0.98] transition-all"
-                  >
-                    Salvar Alterações
-                  </button>
-                  <button
-                    onClick={() => setIsEditing(false)}
-                    className="px-6 py-4 bg-gray-100 text-gray-600 rounded-[20px] font-bold hover:bg-gray-200 active:scale-[0.98] transition-all"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={handleDelete}
-                    className="w-14 h-14 flex items-center justify-center bg-red-50 border border-red-100 text-red-500 rounded-[20px] hover:bg-red-100 active:scale-[0.98] transition-all group"
-                    title="Excluir Nota"
-                  >
-                    <span className="material-symbols-outlined group-hover:scale-110 transition-transform">delete</span>
-                  </button>
+                  {showDeleteConfirm ? (
+                    <div className="flex-1 flex gap-2 animate-in fade-in zoom-in duration-300">
+                      <button
+                        onClick={handleDelete}
+                        disabled={isActionLoading}
+                        className="flex-1 py-4 bg-red-500 text-white rounded-[20px] font-bold hover:bg-red-600 active:scale-[0.98] transition-all"
+                      >
+                        {isActionLoading ? 'Excluindo...' : 'Confirmar Exclusão'}
+                      </button>
+                      <button
+                        onClick={() => setShowDeleteConfirm(false)}
+                        className="px-6 py-4 bg-gray-100 text-gray-600 rounded-[20px] font-bold hover:bg-gray-200 active:scale-[0.98] transition-all"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        onClick={handleUpdate}
+                        disabled={isActionLoading}
+                        className="flex-1 py-4 px-6 bg-[#008080] text-white rounded-[20px] font-bold shadow-xl shadow-[#008080]/10 hover:bg-[#006666] active:scale-[0.98] transition-all disabled:opacity-50"
+                      >
+                        {isActionLoading ? 'Salvando...' : 'Salvar Alterações'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsEditing(false);
+                          setShowDeleteConfirm(false);
+                        }}
+                        className="px-6 py-4 bg-gray-100 text-gray-600 rounded-[20px] font-bold hover:bg-gray-200 active:scale-[0.98] transition-all"
+                      >
+                        Voltar
+                      </button>
+                      <button
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="w-14 h-14 flex items-center justify-center bg-red-50 border border-red-100 text-red-500 rounded-[20px] hover:bg-red-100 active:scale-[0.98] transition-all group"
+                        title="Excluir Nota"
+                      >
+                        <span className="material-symbols-outlined group-hover:scale-110 transition-transform">delete</span>
+                      </button>
+                    </>
+                  )}
                 </>
               ) : (
                 <>
