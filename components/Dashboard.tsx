@@ -99,21 +99,20 @@ const Dashboard: React.FC = () => {
         <p className="text-[#618389] mt-1">Você estudou {totalStudiedToday === "0.0" ? "0" : totalStudiedToday} horas hoje.</p>
       </section>
 
-      {/* Charts Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+      <div className="space-y-8 mb-8">
         {/* Study Distribution Chart (Today) */}
-        <section className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col h-full">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-[#618389] mb-4">Estudo Diário (Hoje)</h3>
-          <div className="flex-1 flex flex-col items-center justify-center">
-            <div className="relative size-40 flex items-center justify-center mb-6">
+        <section>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-[#618389] mb-3">Estudo Diário (Hoje)</h3>
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col items-center">
+            <div className="relative size-48 flex items-center justify-center mb-6">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={chartData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={55}
-                    outerRadius={75}
+                    innerRadius={60}
+                    outerRadius={80}
                     paddingAngle={5}
                     dataKey="value"
                     stroke="none"
@@ -126,66 +125,75 @@ const Dashboard: React.FC = () => {
               </ResponsiveContainer>
               <div className="absolute flex flex-col items-center justify-center">
                 <span className="text-2xl font-bold">{totalMinutesToday >= 60 ? Math.floor(totalMinutesToday / 60) + 'h' : Math.floor(totalMinutesToday) + 'm'}</span>
-                <span className="text-[9px] text-[#618389] uppercase tracking-tighter">Estudados</span>
+                <span className="text-[10px] text-[#618389] uppercase tracking-tighter">Estudados</span>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2 w-full">
+            <div className="grid grid-cols-2 gap-x-8 gap-y-3 w-full">
               {chartData.filter((d: any) => d.name !== 'Nenhuma matéria estudada').map((d: any, i: number) => (
                 <div key={i} className="flex items-center gap-2">
                   <div className="size-2 rounded-full shrink-0" style={{ backgroundColor: d.color }}></div>
-                  <span className="text-[10px] font-semibold truncate flex-1">{d.name}</span>
+                  <span className="text-[11px] font-semibold truncate flex-1">{d.name}</span>
                   <span className="text-[10px] text-[#618389] font-bold">{d.value >= 60 ? (d.value / 60).toFixed(1) + 'h' : Math.floor(d.value) + 'm'}</span>
                 </div>
               ))}
               {Object.keys(aggregatedData).length === 0 && (
-                <p className="col-span-2 text-center text-[10px] text-gray-400 italic">Inicie o timer para ver seu progresso hoje</p>
+                <p className="col-span-2 text-center text-[11px] text-gray-400 italic">Inicie o timer para ver seu progresso hoje</p>
               )}
             </div>
           </div>
         </section>
 
         {/* Cycle of Studies Chart */}
-        <section className="bg-[#111718] rounded-3xl p-6 shadow-xl shadow-black/5 flex flex-col h-full text-white">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400">Ciclo de Estudos</h3>
-            <span className="text-[9px] font-bold text-[#008080] bg-teal-50 px-2 py-0.5 rounded-full">{subjects.length} Matérias</span>
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-[#618389]">Ciclo de Estudos</h3>
+            <span className="text-[10px] font-bold text-[#008080] bg-teal-50 px-2 py-0.5 rounded-full">{subjects.length} Matérias</span>
           </div>
-
-          <div className="flex-1 flex flex-col items-center justify-center">
-            <div className="relative size-40 flex items-center justify-center mb-6">
+          <div className="bg-[#111718] rounded-3xl p-6 shadow-xl shadow-black/5 flex flex-col items-center text-white">
+            <div className="relative size-56 flex items-center justify-center mb-8">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={subjects.length > 0 ? subjects.map(s => ({ name: s.name, value: 1, color: s.color })) : [{ name: 'Vazio', value: 1, color: '#333' }]}
+                    data={subjects.length > 0 ? subjects.map((s, i) => ({
+                      name: s.name,
+                      value: 1,
+                      color: s.color || ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD', '#D4A5A5', '#9B59B6', '#3498DB'][i % 8] // Fallback colors
+                    })) : [{ name: 'Vazio', value: 1, color: '#333' }]}
                     cx="50%"
                     cy="50%"
-                    innerRadius={55}
-                    outerRadius={75}
+                    innerRadius={70}
+                    outerRadius={90}
                     paddingAngle={5}
                     dataKey="value"
                     stroke="none"
                   >
-                    {(subjects.length > 0 ? subjects : [{ color: '#333' }]).map((entry: any, index: number) => (
-                      <Cell key={`cell-${index}`} fill={entry.color || '#008080'} />
-                    ))}
+                    {(subjects.length > 0 ? subjects : [{ color: '#333' }]).map((entry: any, index: number) => {
+                      const fallbackColors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD', '#D4A5A5', '#9B59B6', '#3498DB'];
+                      const color = entry.color || fallbackColors[index % fallbackColors.length];
+                      return <Cell key={`cell-${index}`} fill={color} />;
+                    })}
                   </Pie>
                 </PieChart>
               </ResponsiveContainer>
               <div className="absolute flex flex-col items-center justify-center">
-                <span className="material-symbols-outlined text-teal-400 text-2xl">sync</span>
+                <span className="material-symbols-outlined text-teal-400 text-3xl">sync</span>
               </div>
             </div>
 
-            <div className="flex flex-wrap justify-center gap-x-3 gap-y-2 w-full max-h-32 overflow-y-auto custom-scrollbar">
-              {subjects.map((s, i) => (
-                <div key={i} className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-full border border-white/10 hover:bg-white/10 transition-colors cursor-default">
-                  <div className="size-1.5 rounded-full" style={{ backgroundColor: s.color }}></div>
-                  <span className="text-[9px] font-medium opacity-80">{s.name}</span>
-                </div>
-              ))}
+            <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 w-full">
+              {subjects.map((s, i) => {
+                const fallbackColors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD', '#D4A5A5', '#9B59B6', '#3498DB'];
+                const color = s.color || fallbackColors[i % fallbackColors.length];
+                return (
+                  <div key={i} className="flex items-center gap-1.5 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
+                    <div className="size-2 rounded-full" style={{ backgroundColor: color }}></div>
+                    <span className="text-[11px] font-medium opacity-80">{s.name}</span>
+                  </div>
+                );
+              })}
               {subjects.length === 0 && (
-                <p className="text-[10px] text-gray-500 italic">Cadastre matérias para montar seu ciclo</p>
+                <p className="text-[11px] text-gray-500 italic">Cadastre matérias para montar seu ciclo</p>
               )}
             </div>
           </div>
