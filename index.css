@@ -1,0 +1,52 @@
+
+/* Base styles and transitions */
+:root {
+  --primary: #008080;
+  --bg-light: #fdfcfb;
+  --bg-dark: #0f171a;
+}
+
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Smooth transitions for theme switching */
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Material Symbols sizing and alignment */
+.material-symbols-outlined {
+  display: inline-block;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+/* Scrollbar styling */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Chart tooltip styles in dark mode */
+.dark .recharts-default-tooltip {
+  background-color: #1a2428 !important;
+  border-color: #1e292e !important;
+  color: #fff !important;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}

@@ -14,6 +14,10 @@ const Subjects: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
 
+  // UI state
+  const [expandedSubjectId, setExpandedSubjectId] = useState<string | null>(null);
+  const [showColorPicker, setShowColorPicker] = useState(false);
+
   // Editing state
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -88,6 +92,7 @@ const Subjects: React.FC = () => {
       setSubjects([...subjects, { ...data[0], topics: [] }]);
       setNewSubject('');
       setSelectedColor(PREDEFINED_COLORS[0]);
+      setShowColorPicker(false);
     }
   };
 
@@ -186,44 +191,56 @@ const Subjects: React.FC = () => {
     }
   };
 
+  const toggleExpand = (id: string) => {
+    setExpandedSubjectId(expandedSubjectId === id ? null : id);
+  };
+
   return (
     <div className="px-6 py-4 pb-32">
       <header className="mb-8 mt-4">
-        <h1 className="text-3xl font-bold tracking-tight text-[#111718]">Matérias</h1>
-        <p className="text-[#618389] mt-1">Gerencie seu ciclo de estudos.</p>
+        <h1 className="text-3xl font-bold tracking-tight text-[#111718] dark:text-white">Matérias</h1>
+        <p className="text-[#618389] dark:text-gray-400 mt-1">Gerencie seu ciclo de estudos.</p>
       </header>
 
-      <form onSubmit={addSubject} className="mb-8 p-4 bg-white rounded-3xl shadow-sm border border-gray-100 flex flex-col gap-4">
-        <div className="flex gap-2 p-2 bg-gray-50 rounded-2xl border border-gray-100 placeholder:text-gray-400">
+      <form onSubmit={addSubject} className="mb-6 bg-white dark:bg-[#1a2428] rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 p-2 flex flex-col gap-2 transition-colors">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowColorPicker(!showColorPicker)}
+            className="size-10 rounded-2xl flex items-center justify-center shrink-0 transition-all border-none"
+            style={{ backgroundColor: selectedColor }}
+          >
+            <span className="material-symbols-outlined text-white/50 text-xl">palette</span>
+          </button>
           <input
             type="text"
             value={newSubject}
             onChange={(e) => setNewSubject(e.target.value)}
-            placeholder="Nova matéria..."
-            className="flex-1 bg-transparent border-none focus:ring-0 text-[#111718] font-medium"
+            placeholder="Adicionar nova matéria..."
+            className="flex-1 bg-transparent border-none focus:ring-0 text-[#111718] dark:text-gray-100 font-medium h-10 placeholder-gray-400 dark:placeholder-gray-500"
           />
+          <button
+            type="submit"
+            disabled={!newSubject.trim()}
+            className="size-10 bg-[#111718] dark:bg-white text-white dark:text-[#1a2428] rounded-2xl flex items-center justify-center disabled:opacity-50 active:scale-95 transition-all"
+          >
+            <span className="material-symbols-outlined">add</span>
+          </button>
         </div>
 
-        <div className="flex items-center justify-between">
-          <div className="flex flex-wrap gap-2">
+        {showColorPicker && (
+          <div className="flex flex-wrap gap-2 p-2 pt-0 animate-in fade-in slide-in-from-top-2">
             {PREDEFINED_COLORS.map(color => (
               <button
                 key={color}
                 type="button"
-                onClick={() => setSelectedColor(color)}
-                className={`size-6 rounded-full transition-all ${selectedColor === color ? 'ring-2 ring-offset-2 ring-[#111718] scale-110' : 'hover:scale-105'}`}
+                onClick={() => { setSelectedColor(color); setShowColorPicker(false); }}
+                className={`size-6 rounded-full transition-all ${selectedColor === color ? 'ring-2 ring-offset-2 dark:ring-offset-[#1a2428] ring-[#111718] dark:ring-white scale-110' : 'hover:scale-105'}`}
                 style={{ backgroundColor: color }}
               />
             ))}
           </div>
-          <button
-            type="submit"
-            disabled={!newSubject.trim()}
-            className="h-10 px-6 bg-[#111718] text-white rounded-xl flex items-center justify-center disabled:opacity-50 active:scale-95 transition-all font-bold"
-          >
-            Adicionar
-          </button>
-        </div>
+        )}
       </form>
 
       {loading ? (
@@ -231,16 +248,16 @@ const Subjects: React.FC = () => {
           <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#008080]"></div>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {subjects.map((subject) => (
-            <div key={subject.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 group transition-all">
+            <div key={subject.id} className="bg-white dark:bg-[#1a2428] rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden transition-all duration-300">
               {editingId === subject.id ? (
-                <div className="space-y-4 animate-in fade-in duration-200">
+                <div className="p-4 space-y-4 bg-gray-50/50 dark:bg-black/20">
                   <input
                     type="text"
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 focus:ring-2 focus:ring-[#008080]/20 outline-none font-bold"
+                    className="w-full bg-white dark:bg-[#111718] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-[#111718] dark:text-gray-100 focus:ring-2 focus:ring-[#008080]/20 outline-none font-bold placeholder-gray-400 dark:placeholder-gray-600"
                   />
                   <div className="flex items-center justify-between">
                     <div className="flex flex-wrap gap-2">
@@ -249,7 +266,7 @@ const Subjects: React.FC = () => {
                           key={color}
                           type="button"
                           onClick={() => setEditColor(color)}
-                          className={`size-5 rounded-full transition-all ${editColor === color ? 'ring-2 ring-offset-1 ring-[#111718] scale-110' : 'hover:scale-105'}`}
+                          className={`size-5 rounded-full transition-all ${editColor === color ? 'ring-2 ring-offset-1 dark:ring-offset-[#1a2428] ring-[#111718] dark:ring-white scale-110' : 'hover:scale-105'}`}
                           style={{ backgroundColor: color }}
                         />
                       ))}
@@ -257,13 +274,13 @@ const Subjects: React.FC = () => {
                     <div className="flex gap-2">
                       <button
                         onClick={() => setEditingId(null)}
-                        className="px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-100 rounded-lg font-bold"
+                        className="px-3 py-1.5 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg font-bold"
                       >
                         Cancelar
                       </button>
                       <button
                         onClick={handleUpdateSubject}
-                        className="px-4 py-1.5 text-xs bg-[#111718] text-white rounded-lg font-bold"
+                        className="px-4 py-1.5 text-xs bg-[#111718] dark:bg-white text-white dark:text-[#1a2428] rounded-lg font-bold"
                       >
                         Salvar
                       </button>
@@ -272,93 +289,103 @@ const Subjects: React.FC = () => {
                 </div>
               ) : (
                 <>
-                  <div className="flex items-center justify-between mb-3">
+                  <div
+                    onClick={() => toggleExpand(subject.id)}
+                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50/50 dark:hover:bg-black/10 transition-colors group select-none"
+                  >
                     <div className="flex items-center gap-3">
-                      <div className={`size-10 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-sm`} style={{ backgroundColor: subject.color }}>
+                      <div className={`size-10 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-sm shrink-0`} style={{ backgroundColor: subject.color }}>
                         {subject.name.charAt(0)}
                       </div>
                       <div>
-                        <h3 className="font-bold text-[#111718] leading-tight flex items-center gap-2">
+                        <h3 className="font-bold text-[#111718] dark:text-gray-100 leading-tight flex items-center gap-2">
                           {subject.name}
                         </h3>
-                        <p className="text-[10px] text-[#618389] font-medium uppercase tracking-wider">{subject.topics?.length || 0} Tópicos</p>
+                        <p className="text-[10px] text-[#618389] dark:text-gray-400 font-medium uppercase tracking-wider">{subject.topics?.length || 0} Tópicos</p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => startEditing(subject)}
-                        className="size-8 rounded-full flex items-center justify-center text-gray-400 hover:text-[#008080] hover:bg-teal-50"
-                      >
-                        <span className="material-symbols-outlined text-lg">edit</span>
-                      </button>
-                      <button
-                        onClick={() => deleteSubject(subject.id)}
-                        className="size-8 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50"
-                      >
-                        <span className="material-symbols-outlined text-lg">delete</span>
-                      </button>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); startEditing(subject); }}
+                          className="size-8 rounded-full flex items-center justify-center text-gray-400 hover:text-[#008080] hover:bg-teal-50 dark:hover:bg-teal-900/30 transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-lg">edit</span>
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); deleteSubject(subject.id); }}
+                          className="size-8 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-lg">delete</span>
+                        </button>
+                      </div>
+                      <span className={`material-symbols-outlined text-gray-300 dark:text-gray-600 transition-transform duration-300 ${expandedSubjectId === subject.id ? 'rotate-180' : ''}`}>
+                        keyboard_arrow_down
+                      </span>
                     </div>
                   </div>
 
-                  {/* Topics Section */}
-                  <div className="mt-4 pl-[3.25rem] space-y-2">
-                    {/* Existing Topics */}
-                    {(subject.topics || []).map(topic => (
-                      <div key={topic.id} className="flex items-center justify-between group/topic py-1">
-                        <div className="flex items-center gap-2">
-                          <div className="size-1.5 rounded-full bg-gray-200" style={{ backgroundColor: subject.color + '40' }}></div>
-                          <span className="text-sm text-gray-600">{topic.name}</span>
+                  {/* Topics Section - Expandable */}
+                  {expandedSubjectId === subject.id && (
+                    <div className="bg-gray-50/50 dark:bg-[#111718]/40 border-t border-gray-100 dark:border-gray-800 p-4 pl-[4.5rem] space-y-2 animate-in slide-in-from-top-2 fade-in duration-200 transition-colors">
+                      {/* Existing Topics */}
+                      {(subject.topics || []).map(topic => (
+                        <div key={topic.id} className="flex items-center justify-between group/topic py-1">
+                          <div className="flex items-center gap-2">
+                            <div className="size-1.5 rounded-full" style={{ backgroundColor: subject.color }}></div>
+                            <span className="text-sm text-gray-600 dark:text-gray-400">{topic.name}</span>
+                          </div>
+                          <button
+                            onClick={() => deleteTopic(topic.id, subject.id)}
+                            className="text-gray-300 dark:text-gray-600 hover:text-red-400 opacity-0 group-hover/topic:opacity-100 transition-opacity"
+                          >
+                            <span className="material-symbols-outlined text-sm">close</span>
+                          </button>
                         </div>
-                        <button
-                          onClick={() => deleteTopic(topic.id, subject.id)}
-                          className="text-gray-300 hover:text-red-400 opacity-0 group-hover/topic:opacity-100 transition-opacity"
-                        >
-                          <span className="material-symbols-outlined text-sm">close</span>
-                        </button>
-                      </div>
-                    ))}
+                      ))}
 
-                    {/* Add Topic Input */}
-                    {showTopicInput[subject.id] ? (
-                      <div className="flex items-center gap-2 mt-2 animate-in fade-in slide-in-from-top-1">
-                        <input
-                          autoFocus
-                          type="text"
-                          placeholder="Nome do tópico..."
-                          className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:ring-1 focus:ring-[#008080] outline-none"
-                          value={newTopicNames[subject.id] || ''}
-                          onChange={(e) => setNewTopicNames({ ...newTopicNames, [subject.id]: e.target.value })}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') addTopic(subject.id);
-                            if (e.key === 'Escape') setShowTopicInput({ ...showTopicInput, [subject.id]: false });
-                          }}
-                        />
+                      {/* Add Topic Input */}
+                      {showTopicInput[subject.id] ? (
+                        <div className="flex items-center gap-2 mt-2 animate-in fade-in slide-in-from-top-1">
+                          <input
+                            autoFocus
+                            type="text"
+                            placeholder="Nome do tópico..."
+                            className="flex-1 bg-white dark:bg-[#111718] border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 text-xs text-[#111718] dark:text-gray-100 focus:ring-1 focus:ring-[#008080] outline-none placeholder-gray-400 dark:placeholder-gray-600"
+                            value={newTopicNames[subject.id] || ''}
+                            onChange={(e) => setNewTopicNames({ ...newTopicNames, [subject.id]: e.target.value })}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') addTopic(subject.id);
+                              if (e.key === 'Escape') setShowTopicInput({ ...showTopicInput, [subject.id]: false });
+                            }}
+                          />
+                          <button
+                            onClick={() => addTopic(subject.id)}
+                            className="text-[#008080] dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/30 p-1 rounded transition-colors"
+                          >
+                            <span className="material-symbols-outlined text-lg">check</span>
+                          </button>
+                        </div>
+                      ) : (
                         <button
-                          onClick={() => addTopic(subject.id)}
-                          className="text-[#008080] hover:bg-teal-50 p-1 rounded"
+                          onClick={() => setShowTopicInput({ ...showTopicInput, [subject.id]: true })}
+                          className="flex items-center gap-2 text-[11px] font-bold text-[#008080] dark:text-teal-400 hover:underline mt-2 transition-all"
                         >
-                          <span className="material-symbols-outlined text-lg">check</span>
+                          <span className="material-symbols-outlined text-sm">add</span> Adicionar tópico
                         </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => setShowTopicInput({ ...showTopicInput, [subject.id]: true })}
-                        className="flex items-center gap-2 text-[11px] font-bold text-[#008080] hover:underline mt-2"
-                      >
-                        <span className="material-symbols-outlined text-sm">add</span> Adicionar tópico
-                      </button>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
             </div>
           ))}
 
           {subjects.length === 0 && (
-            <div className="text-center py-12 px-4 rounded-3xl border-2 border-dashed border-gray-100">
-              <span className="material-symbols-outlined text-4xl text-gray-200 mb-2">auto_stories</span>
-              <p className="text-gray-400 text-sm">Adicione sua primeira matéria para começar.</p>
+            <div className="text-center py-12 px-4 rounded-3xl border-2 border-dashed border-gray-100 dark:border-gray-800">
+              <span className="material-symbols-outlined text-4xl text-gray-200 dark:text-gray-700 mb-2">auto_stories</span>
+              <p className="text-gray-400 dark:text-gray-500 text-sm">Adicione sua primeira matéria para começar.</p>
             </div>
           )}
         </div>

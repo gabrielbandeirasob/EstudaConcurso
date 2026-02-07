@@ -165,21 +165,21 @@ const Notes: React.FC = () => {
     <div
       key={note.id}
       onClick={() => setSelectedNote(note)}
-      className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between gap-4 hover:border-[#008080]/30 transition-all active:scale-[0.99] cursor-pointer group"
+      className="bg-white dark:bg-[#1a2428] rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-800 flex items-center justify-between gap-4 hover:border-[#008080]/30 transition-all active:scale-[0.99] cursor-pointer group"
     >
       <div className="flex-1 overflow-hidden">
-        <h3 className="font-bold text-sm mb-0.5 truncate text-[#111718] group-hover:text-[#008080] transition-colors">{note.title}</h3>
-        <p className="text-[11px] text-gray-400 truncate leading-relaxed">Clique para ver o conteúdo completo...</p>
+        <h3 className="font-bold text-sm mb-0.5 truncate text-[#111718] dark:text-gray-100 group-hover:text-[#008080] dark:group-hover:text-teal-400 transition-colors">{note.title}</h3>
+        <p className="text-[11px] text-gray-400 dark:text-gray-500 truncate leading-relaxed">Clique para ver o conteúdo completo...</p>
       </div>
       <div className="shrink-0 flex items-center gap-2">
         <div className="flex flex-wrap gap-1">
           {(note.tags || []).slice(0, 1).map(tag => (
-            <span key={tag} className="px-2 py-0.5 rounded-[4px] text-[8px] font-bold bg-[#F0F7F7] text-[#008080] uppercase tracking-wider">
+            <span key={tag} className="px-2 py-0.5 rounded-[4px] text-[8px] font-bold bg-[#F0F7F7] dark:bg-teal-900/30 text-[#008080] dark:text-teal-400 uppercase tracking-wider">
               {tag}
             </span>
           ))}
         </div>
-        <span className="material-symbols-outlined text-gray-300 text-[18px] group-hover:text-[#008080] transition-colors">chevron_right</span>
+        <span className="material-symbols-outlined text-gray-300 dark:text-gray-600 text-[18px] group-hover:text-[#008080] dark:group-hover:text-teal-400 transition-colors">chevron_right</span>
       </div>
     </div>
   );
@@ -193,16 +193,16 @@ const Notes: React.FC = () => {
           onClick={() => filter === 'Todas' && toggleFolder(subjectName)}
           className="flex items-center gap-3 px-1 w-full text-left group py-1"
         >
-          <span className="material-symbols-outlined text-[#008080] text-[22px] transition-transform duration-200" style={{ fontVariationSettings: isExpanded ? '"FILL" 1' : '"FILL" 0' }}>
+          <span className="material-symbols-outlined text-[#008080] dark:text-teal-400 text-[22px] transition-transform duration-200" style={{ fontVariationSettings: isExpanded ? '"FILL" 1' : '"FILL" 0' }}>
             {isExpanded ? 'folder_open' : 'folder'}
           </span>
-          <h2 className="font-bold text-[#111718] text-base flex-1">{subjectName}</h2>
+          <h2 className="font-bold text-[#111718] dark:text-gray-100 text-base flex-1">{subjectName}</h2>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+            <span className="text-[10px] font-bold bg-gray-100 dark:bg-[#1a2428] text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded-full transition-colors border border-transparent dark:border-gray-800">
               {subjectNotes.length}
             </span>
             {filter === 'Todas' && (
-              <span className={`material-symbols-outlined text-gray-300 text-[20px] transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>
+              <span className={`material-symbols-outlined text-gray-300 dark:text-gray-600 text-[20px] transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>
                 keyboard_arrow_down
               </span>
             )}
@@ -223,44 +223,44 @@ const Notes: React.FC = () => {
       <header className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Notas de Estudo</h1>
-            <p className="text-sm text-gray-500">Clique nas pastas e notas para explorar</p>
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white transition-colors">Notas de Estudo</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Clique nas pastas e notas para explorar</p>
           </div>
           <button
             onClick={() => setShowAddForm(true)}
-            className="flex items-center justify-center w-12 h-12 rounded-full bg-[#008080] text-white shadow-lg shadow-[#008080]/20 transition-transform active:scale-95"
+            className="flex items-center justify-center w-12 h-12 rounded-full bg-[#008080] dark:bg-teal-500 text-white shadow-lg shadow-[#008080]/20 dark:shadow-teal-900/40 transition-transform active:scale-95"
           >
             <span className="material-symbols-outlined">add</span>
           </button>
         </div>
 
         {showAddForm && (
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4 mb-8 ring-1 ring-black/5">
-            <h3 className="font-bold text-[#111718]">Nova Nota</h3>
+          <div className="bg-white dark:bg-[#1a2428] p-6 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm space-y-4 mb-8 ring-1 ring-black/5 transition-colors">
+            <h3 className="font-bold text-[#111718] dark:text-gray-100">Nova Nota</h3>
             <div className="space-y-3">
               <input
                 type="text"
                 placeholder="Título da nota"
-                className="w-full p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#008080]/20 focus:border-[#008080] transition-all"
+                className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#111718] text-[#111718] dark:text-gray-100 focus:ring-2 focus:ring-[#008080]/20 focus:border-[#008080] transition-all placeholder-gray-400 dark:placeholder-gray-600"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
               />
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-gray-400 uppercase px-1">Selecione a Pasta (Matéria)</label>
+                <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase px-1">Selecione a Pasta (Matéria)</label>
                 <select
-                  className="w-full p-3 rounded-xl border border-gray-200 bg-gray-50 focus:ring-2 focus:ring-[#008080]/20"
+                  className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#111718] text-[#111718] dark:text-gray-100 focus:ring-2 focus:ring-[#008080]/20 transition-colors"
                   value={selectedSubjectId}
                   onChange={(e) => setSelectedSubjectId(e.target.value)}
                 >
                   {subjects.map(s => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
+                    <option key={s.id} value={s.id} className="dark:bg-[#1a2428]">{s.name}</option>
                   ))}
-                  {subjects.length === 0 && <option disabled>Crie uma matéria primeiro</option>}
+                  {subjects.length === 0 && <option disabled className="dark:bg-[#1a2428]">Crie uma matéria primeiro</option>}
                 </select>
               </div>
               <textarea
                 placeholder="Conteúdo ou resumo..."
-                className="w-full p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#008080]/20"
+                className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#111718] text-[#111718] dark:text-gray-100 focus:ring-2 focus:ring-[#008080]/20 transition-colors placeholder-gray-400 dark:placeholder-gray-600"
                 rows={3}
                 value={newPreview}
                 onChange={(e) => setNewPreview(e.target.value)}
@@ -270,14 +270,14 @@ const Notes: React.FC = () => {
               <button
                 onClick={addNote}
                 disabled={subjects.length === 0 || isActionLoading}
-                className="flex-1 bg-[#008080] text-white py-3 rounded-xl font-bold disabled:opacity-50 shadow-md shadow-[#008080]/10 flex items-center justify-center"
+                className="flex-1 bg-[#008080] dark:bg-teal-600 text-white py-3 rounded-xl font-bold disabled:opacity-50 shadow-md shadow-[#008080]/10 flex items-center justify-center"
               >
                 {isActionLoading ? 'Salvando...' : 'Salvar'}
               </button>
               <button
                 onClick={() => setShowAddForm(false)}
                 disabled={isActionLoading}
-                className="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold disabled:opacity-50"
+                className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 py-3 rounded-xl font-bold disabled:opacity-50 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
               >
                 Cancelar
               </button>
@@ -287,9 +287,9 @@ const Notes: React.FC = () => {
 
         <div className="flex gap-2">
           <div className="relative flex-1">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[20px]">search</span>
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 text-[20px]">search</span>
             <input
-              className="w-full h-11 pl-10 pr-4 bg-[#f4f1ee] border-none rounded-xl text-sm focus:ring-2 focus:ring-[#008080]/50 placeholder:text-gray-400"
+              className="w-full h-11 pl-10 pr-4 bg-[#f4f1ee] dark:bg-[#1a2428] border-none rounded-xl text-sm text-[#111718] dark:text-gray-100 focus:ring-2 focus:ring-[#008080]/50 placeholder:text-gray-400 dark:placeholder-gray-600 transition-colors"
               placeholder="Buscar em todas as pastas..."
               type="text"
             />
@@ -301,7 +301,7 @@ const Notes: React.FC = () => {
             <button
               key={cat}
               onClick={() => setFilter(cat)}
-              className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${filter === cat ? 'bg-[#008080] text-white' : 'bg-[#f4f1ee] text-gray-600'}`}
+              className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-all ${filter === cat ? 'bg-[#008080] dark:bg-teal-600 text-white' : 'bg-[#f4f1ee] dark:bg-[#1a2428] text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800'}`}
             >
               {cat}
             </button>
@@ -356,19 +356,19 @@ const Notes: React.FC = () => {
       {/* Note Detail Modal Overlay */}
       {selectedNote && (
         <div
-          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-md p-0 sm:p-6"
+          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/40 dark:bg-black/60 backdrop-blur-md p-0 sm:p-6"
           onClick={() => setSelectedNote(null)}
         >
           <div
-            className="bg-white w-full max-w-lg rounded-t-[32px] sm:rounded-[32px] p-8 overflow-hidden shadow-2xl transition-all transform animate-in slide-in-from-bottom duration-500 ease-out"
+            className="bg-white dark:bg-[#1a2428] w-full max-w-lg rounded-t-[32px] sm:rounded-[32px] p-8 overflow-hidden shadow-2xl transition-all transform animate-in slide-in-from-bottom duration-500 ease-out"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-8 sm:hidden" />
+            <div className="w-12 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full mx-auto mb-8 sm:hidden" />
 
             <div className="flex justify-between items-start mb-6">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#F0F7F7] text-[#008080] uppercase tracking-widest border border-[#008080]/10">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#F0F7F7] dark:bg-teal-900/30 text-[#008080] dark:text-teal-400 uppercase tracking-widest border border-[#008080]/10 dark:border-teal-800 transition-colors">
                     📂 {selectedNote.category}
                   </span>
                 </div>
@@ -377,11 +377,11 @@ const Notes: React.FC = () => {
                     type="text"
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
-                    className="text-2xl font-black text-[#111718] leading-tight tracking-tight w-full border-b-2 border-[#008080]/20 focus:border-[#008080] outline-none py-1"
+                    className="text-2xl font-black text-[#111718] dark:text-white leading-tight tracking-tight w-full border-b-2 border-[#008080]/20 dark:border-teal-500/20 focus:border-[#008080] dark:focus:border-teal-400 bg-transparent outline-none py-1"
                     placeholder="Título da nota"
                   />
                 ) : (
-                  <h2 className="text-2xl font-black text-[#111718] leading-tight tracking-tight">{selectedNote.title}</h2>
+                  <h2 className="text-2xl font-black text-[#111718] dark:text-white leading-tight tracking-tight">{selectedNote.title}</h2>
                 )}
               </div>
               <button
@@ -389,7 +389,7 @@ const Notes: React.FC = () => {
                   setSelectedNote(null);
                   setIsEditing(false);
                 }}
-                className="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-full text-gray-400 hover:text-gray-900 hover:rotate-90 transition-all duration-300"
+                className="w-10 h-10 flex items-center justify-center bg-gray-100 dark:bg-[#2a373d] rounded-full text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white hover:rotate-90 transition-all duration-300"
               >
                 <span className="material-symbols-outlined text-xl">close</span>
               </button>
@@ -400,12 +400,12 @@ const Notes: React.FC = () => {
                 <textarea
                   value={editPreview}
                   onChange={(e) => setEditPreview(e.target.value)}
-                  className="w-full text-gray-600 text-[15px] leading-[1.8] font-medium border-2 border-gray-100 rounded-2xl p-4 focus:border-[#008080]/20 outline-none"
+                  className="w-full text-gray-600 dark:text-gray-300 text-[15px] leading-[1.8] font-medium border-2 border-gray-100 dark:border-gray-800 bg-white dark:bg-[#111718] rounded-2xl p-4 focus:border-[#008080]/20 dark:focus:border-teal-500/20 outline-none transition-colors"
                   rows={8}
                   placeholder="Conteúdo da nota..."
                 />
               ) : (
-                <p className="text-gray-600 text-[15px] leading-[1.8] whitespace-pre-wrap font-medium">
+                <p className="text-gray-600 dark:text-gray-300 text-[15px] leading-[1.8] whitespace-pre-wrap font-medium">
                   {selectedNote.preview}
                 </p>
               )}
@@ -419,13 +419,13 @@ const Notes: React.FC = () => {
                       <button
                         onClick={handleDelete}
                         disabled={isActionLoading}
-                        className="flex-1 py-4 bg-red-500 text-white rounded-[20px] font-bold hover:bg-red-600 active:scale-[0.98] transition-all"
+                        className="flex-1 py-4 bg-red-500 dark:bg-red-600 text-white rounded-[20px] font-bold hover:bg-red-600 dark:hover:bg-red-700 active:scale-[0.98] transition-all"
                       >
                         {isActionLoading ? 'Excluindo...' : 'Confirmar Exclusão'}
                       </button>
                       <button
                         onClick={() => setShowDeleteConfirm(false)}
-                        className="px-6 py-4 bg-gray-100 text-gray-600 rounded-[20px] font-bold hover:bg-gray-200 active:scale-[0.98] transition-all"
+                        className="px-6 py-4 bg-gray-100 dark:bg-[#111718] text-gray-600 dark:text-gray-400 rounded-[20px] font-bold hover:bg-gray-200 dark:hover:bg-black active:scale-[0.98] transition-all"
                       >
                         Cancelar
                       </button>
@@ -435,7 +435,7 @@ const Notes: React.FC = () => {
                       <button
                         onClick={handleUpdate}
                         disabled={isActionLoading}
-                        className="flex-1 py-4 px-6 bg-[#008080] text-white rounded-[20px] font-bold shadow-xl shadow-[#008080]/10 hover:bg-[#006666] active:scale-[0.98] transition-all disabled:opacity-50"
+                        className="flex-1 py-4 px-6 bg-[#008080] dark:bg-teal-600 text-white rounded-[20px] font-bold shadow-xl shadow-[#008080]/10 dark:shadow-teal-900/10 hover:bg-[#006666] dark:hover:bg-teal-700 active:scale-[0.98] transition-all disabled:opacity-50"
                       >
                         {isActionLoading ? 'Salvando...' : 'Salvar Alterações'}
                       </button>
@@ -444,13 +444,13 @@ const Notes: React.FC = () => {
                           setIsEditing(false);
                           setShowDeleteConfirm(false);
                         }}
-                        className="px-6 py-4 bg-gray-100 text-gray-600 rounded-[20px] font-bold hover:bg-gray-200 active:scale-[0.98] transition-all"
+                        className="px-6 py-4 bg-gray-100 dark:bg-[#2a373d] text-gray-600 dark:text-gray-400 rounded-[20px] font-bold hover:bg-gray-200 dark:hover:bg-[#1a2428] active:scale-[0.98] transition-all"
                       >
                         Voltar
                       </button>
                       <button
                         onClick={() => setShowDeleteConfirm(true)}
-                        className="w-14 h-14 flex items-center justify-center bg-red-50 border border-red-100 text-red-500 rounded-[20px] hover:bg-red-100 active:scale-[0.98] transition-all group"
+                        className="w-14 h-14 flex items-center justify-center bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 text-red-500 dark:text-red-400 rounded-[20px] hover:bg-red-100 dark:hover:bg-red-900/40 active:scale-[0.98] transition-all group"
                         title="Excluir Nota"
                       >
                         <span className="material-symbols-outlined group-hover:scale-110 transition-transform">delete</span>
@@ -462,13 +462,13 @@ const Notes: React.FC = () => {
                 <>
                   <button
                     onClick={() => setSelectedNote(null)}
-                    className="flex-1 py-4 px-6 bg-[#111718] text-white rounded-[20px] font-bold shadow-xl shadow-black/10 hover:bg-black active:scale-[0.98] transition-all"
+                    className="flex-1 py-4 px-6 bg-[#111718] dark:bg-white text-white dark:text-[#111718] rounded-[20px] font-bold shadow-xl shadow-black/10 hover:bg-black dark:hover:bg-gray-100 active:scale-[0.98] transition-all"
                   >
                     Voltar
                   </button>
                   <button
                     onClick={handleEdit}
-                    className="w-14 h-14 flex items-center justify-center bg-gray-50 border border-gray-100 text-[#008080] rounded-[20px] hover:bg-white active:scale-[0.98] transition-all group"
+                    className="w-14 h-14 flex items-center justify-center bg-gray-50 dark:bg-[#2a373d] border border-gray-100 dark:border-gray-800 text-[#008080] dark:text-teal-400 rounded-[20px] hover:bg-white dark:hover:bg-[#1a2428] active:scale-[0.98] transition-all group"
                     title="Editar Nota"
                   >
                     <span className="material-symbols-outlined group-hover:scale-110 transition-transform">edit_note</span>
